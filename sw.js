@@ -1,6 +1,6 @@
 const CACHE = 'batida-v1';
 const ASSETS = [
-  './grabTablaBatida.html',
+  './index.html',
   './manifest.json',
   './logo.png',
   './icon.svg'
