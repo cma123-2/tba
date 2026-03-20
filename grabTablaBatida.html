@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12131a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Batida">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="logo.png">
+  <title>Tabla de Batida</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #12131a;
+      color: #dde;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px;
+      gap: 6px;
+    }
+
+    /* ── Área de vídeo ──────────────────────────────────── */
+    .video-area {
+      position: relative; overflow: hidden;
+    }
+
+    .video-area video,
+    .video-area canvas.frame-view {
+      display: block;
+      width: auto; height: auto;
+      max-height: 480px;
+      transform-origin: center center;
+      border-radius: 8px;
+      background: #000;
+      border: 2px solid #2a2a4a;
+    }
+
+    #camPreview  { min-height: 120px; }
+    #frameCanvas { display: none; }
+
+
+    .rec-timer {
+      display: none;
+      align-self: center;
+      background: rgba(0,0,0,.7);
+      color: #ff6b6b; font-size: 1.1rem; font-weight: bold;
+      padding: 4px 18px; border-radius: 6px;
+      pointer-events: none;
+      animation: pulse 1s infinite;
+    }
+
+    /* ── Contenedor vídeo + gráfica (mismo ancho) ──────── */
+    .video-chart-wrap {
+      display: flex; flex-direction: column;
+      width: fit-content; gap: 4px;
+    }
+    .video-col {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    /* ── Barra de progreso ──────────────────────────────── */
+    .progress-wrap {
+      width: 100%;
+      height: 6px; background: #2a2a4a;
+      border-radius: 3px; overflow: hidden;
+      display: none;
+    }
+    .progress-bar { height: 100%; background: #4a9eff; width: 0%; transition: width .08s; }
+
+    /* ── Contenedor controles ────────────────────────────── */
+    .controls-wrap {
+      width: 60%; align-self: center;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .controls-inner {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    /* ── Fila única de botones ───────────────────────────── */
+    .btn-row {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: space-between;
+      width: 100%;
+    }
+    .btn-row button { flex: 1; }
+    .btn-sep { flex: 1; }
+    #camSelect {
+      padding: 3px 4px; border: 1px solid #2a2a4a; border-radius: 7px;
+      background: #1e1e30; color: #dde; font-size: .75rem;
+      max-width: 10rem;
+    }
+
+    button {
+      padding: 4px 8px;
+      border: none; border-radius: 8px;
+      font-size: 1rem; cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    button:active  { transform: scale(.97); }
+    button:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-primary { background: #4a9eff; color: #fff; }
+    .btn-success { background: #28a745; color: #fff; }
+    .btn-danger  { background: #dc3545; color: #fff; }
+    .btn-neutral { background: #495057; color: #fff; }
+    .btn-warn    { background: #e07b00; color: #fff; }
+
+    /* ── Fila nav frames ────────────────────────────────── */
+    #frameNav {
+      display: flex; gap: 6px; justify-content: space-between;
+      flex-wrap: wrap; width: 100%;
+    }
+    #frameNav button { flex: 1; }
+
+    /* ── Gráfica ────────────────────────────────────────── */
+    .chart-wrap {
+      flex: 1; min-width: 0; margin: 0 6px;
+    }
+    canvas.chart {
+      width: 100%; border-radius: 6px; display: block;
+      cursor: ew-resize; height: 48px;
+    }
+
+    /* ── Línea guía central ─────────────────────────────── */
+    .guide-line {
+      display: none;
+      position: absolute; top: 0; bottom: 0;
+      left: 50%; transform: translateX(-50%);
+      width: 1px; background: rgba(0,0,0,.75);
+      pointer-events: none;
+    }
+    .guide-line::after { content: none; }
+    .guide-line.active { display: block; }
+    /* ── Barra inferior del vídeo ────────────────────────── */
+    /* ── Barra inferior del vídeo ────────────────────────── */
+    .video-bottom {
+      position: absolute; bottom: 6px; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: stretch;
+      padding: 0 6px; pointer-events: none;
+    }
+    .ov-frame {
+      background: rgba(0,0,0,.6); border-radius: 4px; padding: 2px 5px;
+      font-size: .58rem; line-height: 1.55; opacity: .9;
+      height: calc(3 * 1.55em); overflow: hidden;
+    }
+    .video-bottom-right {
+      display: flex; flex-direction: column; align-items: flex-end;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .ov-actions { display: flex; gap: 4px; pointer-events: auto; }
+    #btnGrabar, #btnNextDorsal { width: 2.4rem; padding: 4px 0; text-align: center; }
+    .copyright {
+      font-size: .5rem; color: rgba(255,255,255,.4); letter-spacing: .03em;
+    }
+
+    /* ── Overlay vídeo ───────────────────────────────────── */
+    .info-overlay {
+      position: absolute; inset: 6px; border-radius: 6px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      pointer-events: none; color: #fff; font-size: .72rem;
+    }
+    .ov-top-group {
+      display: flex; flex-direction: column;
+      pointer-events: auto;
+    }
+    .ov-top {
+      background: rgba(0,0,0,.6); border-radius: 8px 8px 0 0;
+      padding: 4px 10px 4px 6px; display: flex; align-items: center; gap: 10px;
+      pointer-events: auto;
+    }
+    .ov-top img { height: 30px; flex-shrink: 0; }
+    .ov-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .ov-dir { font-size: .75rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.1em; }
+    .ov-fields-row {
+      display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
+    }
+    .ov-fields-row input,
+    .ov-fields-row select {
+      padding: 2px 3px; border: 1px solid rgba(255,255,255,.3); border-radius: 5px;
+      background: rgba(0,0,0,.45); color: #eef;
+      font-size: .7rem; text-align: center; min-width: 0;
+    }
+    .ov-fields-row input:disabled,
+    .ov-fields-row select:disabled { color: rgba(238,238,255,.3); }
+    #fldIntento { width: 2.8rem; }
+    #fldDorsal  { width: 4.5rem; max-width: 10rem; }
+    #fldEquipo  { width: 5rem; }
+    #fldNombre  { flex: 1; }
+    #fldIntento, #fldDorsal { appearance: none; -webkit-appearance: none; }
+    #btnPlay { background: #495057; color: #4a9eff; }
+    #filePickerModal {
+      position: absolute; inset: 0; border-radius: 8px; z-index: 20;
+      background: rgba(10,10,20,.92); color: #dde;
+      display: flex; flex-direction: column;
+    }
+    #filePickerList {
+      flex: 1; min-height: 0; overflow-y: auto; padding: 6px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    #filePickerList div {
+      flex-shrink: 0; padding: 6px 10px; border-radius: 5px; cursor: pointer;
+      font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #filePickerList div:hover { background: rgba(74,158,255,.25); }
+    #btnZoomH.zoom-active { background: #1a3a5c; }
+
+    /* ── Status ─────────────────────────────────────────── */
+    .status {
+      font-size: .85rem; color: #888; min-height: 18px;
+      text-align: center; width: 100%; max-width: 760px;
+    }
+    .status.rec { color: #ff6b6b; font-weight: bold; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── Info directorio + fichero ──────────────────────── */
+    .dir-info {
+      display: none;
+      font-size: .8rem; color: #7ec8e3;
+      background: rgba(126,200,227,.1);
+      padding: 5px 14px; border-radius: 6px;
+      text-align: center; gap: 16px;
+      width: 100%; max-width: 760px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .dir-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; }
+
+  </style>
+</head>
+<body>
+
+<!-- Contenedor vídeo + gráfica (mismo ancho) -->
+<div class="video-chart-wrap">
+
+  <!-- Columna vídeo (vídeo + barra progreso) -->
+  <div class="video-col">
+  <div class="video-area" id="videoArea">
+    <video id="camPreview" autoplay muted playsinline></video>
+    <canvas class="frame-view" id="frameCanvas"></canvas>
+    <div class="guide-line" id="guideLine"></div>
+    <div class="info-overlay" id="infoOverlay">
+      <div class="ov-top-group">
+        <div class="ov-top">
+          <img src="logo.png" alt="logo" onerror="this.style.display='none'">
+          <div class="ov-center">
+            <div class="ov-dir" id="ovDir"></div>
+            <div class="ov-fields-row">
+              <select id="fldIntento" onchange="onIntentoChange()" title="Intento" disabled>
+                <option>1</option><option>2</option><option>3</option>
+                <option>4</option><option>5</option><option>6</option>
+              </select>
+              <input id="fldDorsal" value="1" title="Dorsal" disabled>
+              <input id="fldEquipo" value="Equipo" title="Equipo" disabled>
+              <input id="fldNombre" value="Nombre" title="Nombre" disabled>
+            </div>
+          </div>
+        </div>
+        <div class="rec-timer" id="recTimer">⏺ 00:00</div>
+      </div>
+    </div>
+    <!-- Barra inferior: frame info (izq) | gráfica (centro) | botones+copyright (der) -->
+    <div class="video-bottom">
+      <div class="ov-frame" id="frameOverlay"></div>
+      <div class="chart-wrap" id="chartWrap">
+        <canvas class="chart" id="chartCanvas" height="100"></canvas>
+      </div>
+      <div class="video-bottom-right">
+        <div class="ov-actions">
+          <button class="btn-danger"  id="btnGrabar"     onclick="toggleGrabacion()"  disabled title="Grabar / Detener">●</button>
+          <button class="btn-primary" id="btnNextDorsal" onclick="siguienteDorsal()" disabled title="Siguiente dorsal">→</button>
+        </div>
+        <div class="copyright">© 2026 cma</div>
+      </div>
+    </div>
+    <!-- Modal selector de ficheros del directorio -->
+    <div id="filePickerModal" style="display:none">
+      <div id="filePickerList"></div>
+      <button class="btn-neutral" onclick="closeFilePicker()" style="margin:4px;align-self:flex-end">✕ Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Progreso escaneo -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  </div><!-- /video-col -->
+
+  <!-- Controles al 60% del ancho del vídeo -->
+  <div class="controls-wrap">
+  <div class="controls-inner">
+
+  <!-- Línea 1: Navegación de frames -->
+  <div id="frameNav">
+    <button class="btn-neutral" onclick="stepFrame(-10)" title="-10 frames" disabled>«</button>
+    <button class="btn-neutral" onclick="stepFrame(-1)"  title="Frame anterior" disabled>‹</button>
+    <button class="btn-warn"    id="btnGoKey" onclick="goFrame(keyFrame)" title="Frame clave" disabled>★</button>
+    <button class="btn-neutral" onclick="stepFrame(1)"   title="Frame siguiente" disabled>›</button>
+    <button class="btn-neutral" onclick="stepFrame(10)"  title="+10 frames" disabled>»</button>
+    <button class="btn-neutral" id="btnPlay"      onclick="togglePlay()"  title="Play/Pausa" disabled>▶</button>
+    <button class="btn-neutral" id="btnZoomH"     onclick="zoomHIn()"    title="Zoom horizontal" disabled><svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+    <button class="btn-neutral" id="btnZoomReset" onclick="zoomHReset()" title="Resetear zoom"    disabled><svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+  </div>
+
+  <!-- Línea 2: Herramientas -->
+  <div class="btn-row">
+    <select id="camSelect" onchange="cambiarCamara()" title="Seleccionar cámara" style="display:none"></select>
+    <button class="btn-neutral" id="btnSelDir"     onclick="seleccionarDir()"      title="Seleccionar directorio" disabled>📁</button>
+    <button class="btn-neutral" id="btnFullscreen" onclick="toggleFullscreen()"    title="Pantalla completa">⛶</button>
+    <button class="btn-neutral" id="btnReloadPart" onclick="reloadParticipantes()" title="Recargar participantes" disabled>↺</button>
+    <button class="btn-neutral" id="btnCargar"     onclick="cargarDesdeDir()"      title="Cargar vídeo" disabled>🎞</button>
+    <button class="btn-neutral" id="btnGuide"      onclick="toggleGuide()"         title="Línea guía central" disabled>⊕</button>
+  </div>
+
+  </div><!-- /controls-inner -->
+
+  <!-- Status -->
+  <div class="status" id="status">Selecciona un directorio para comenzar</div>
+
+  </div><!-- /controls-wrap -->
+
+</div><!-- /video-chart-wrap -->
+
+
+<!-- Elementos ocultos -->
+<video  id="analyzeVideo"  style="display:none" preload="auto" muted></video>
+<canvas id="extractCanvas" style="display:none"></canvas>
+<input  id="fileInput"     style="display:none" type="file" accept="video/*">
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════════════
+let dirHandle      = null;
+let mediaStream    = null;
+let mediaRecorder  = null;
+let recChunks      = [];
+
+// Análisis
+let samples        = [];       // [{t, change, white}] ordenados por tiempo
+let frameCount     = 0;        // frames totales a videoFPS nativo
+let currentFrame   = 0;        // frame actual (a videoFPS)
+let keyFrame       = 0;        // frame nativo del punto clave
+let videoFPS       = 30;
+let whiteThreshold = 230;
+let analyzeReady   = false;
+let scanning       = false;
+let playing        = false;
+let playTimer      = null;
+
+// Análisis en tiempo real durante grabación
+let liveAnalysisInterval = null;
+
+// Fondo de referencia
+let bgData         = null;   // Float32Array con luminancia media de los primeros BG_FRAMES frames
+const BG_FRAMES    = 5;      // frames para calcular el fondo
+const MOTION_THR   = 15;     // umbral por pixel (0-255) para considerar movimiento
+
+const EXTRACT_W    = 160;
+const EXTRACT_H    = 90;
+
+const camPreview   = document.getElementById('camPreview');
+const frameCanvas  = document.getElementById('frameCanvas');
+const chartCanvas  = document.getElementById('chartCanvas');
+const analyzeVideo = document.getElementById('analyzeVideo');
+const extractCanvas= document.getElementById('extractCanvas');
+const btnGrabar    = document.getElementById('btnGrabar');
+let recordingDate  = '';
+let hZoom          = 1;
+const btnCargar    = document.getElementById('btnCargar');
+const btnPlay      = document.getElementById('btnPlay');
+const btnGoKey     = document.getElementById('btnGoKey');
+
+extractCanvas.width  = EXTRACT_W;
+extractCanvas.height = EXTRACT_H;
+
+// ═══════════════════════════════════════════════════════════
+//  DIRECTORIO
+// ═══════════════════════════════════════════════════════════
+let participantes = []; // [{dorsal, equipo, nombre}]
+
+async function seleccionarDir() {
+  if (!('showDirectoryPicker' in window)) {
+    setStatus('Selección de directorio no disponible en este dispositivo.');
+    return;
+  }
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: dirHandle ?? 'videos' });
+    document.getElementById('ovDir').textContent = dirHandle.name;
+    btnCargar.disabled  = false;
+    btnGrabar.disabled  = !mediaStream;
+    document.getElementById('btnReloadPart').disabled = false;
+    await loadParticipantes();
+    updateOverlayFromFields();
+    setStatus('Directorio seleccionado. Listo para grabar o cargar.');
+  } catch(e) {
+    if (e.name !== 'AbortError') setStatus('Error: ' + e.message);
+  }
+}
+
+async function reloadParticipantes() {
+  if (!dirHandle) return;
+  const btn = document.getElementById('btnReloadPart');
+  btn.textContent = '↻';
+  await loadParticipantes();
+  btn.textContent = '↺';
+}
+
+async function loadParticipantes() {
+  try {
+    const fh   = await dirHandle.getFileHandle('participantes.txt');
+    const file = await fh.getFile();
+    const text = await file.text();
+    participantes = text.split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'))
+      .map(l => { const p = l.split(';'); return { orden: parseInt(p[0]?.trim()) || 0, dorsal: p[1]?.trim(), equipo: p[2]?.trim(), nombre: p[3]?.trim() }; })
+      .filter(p => p.dorsal && p.equipo && p.nombre)
+      .sort((a, b) => a.orden - b.orden);
+    buildParticipanteSelects();
+  } catch(e) {
+    buildVirtualParticipantes();
+  }
+}
+
+function buildVirtualParticipantes() {
+  participantes = Array.from({ length: 99 }, (_, i) => {
+    const n = String(i + 1).padStart(2, '0');
+    return { orden: i + 1, dorsal: `D${n}`, equipo: '-', nombre: `Atleta D${n}` };
+  });
+  buildParticipanteSelects();
+}
+
+function buildParticipanteSelects() {
+  // Solo Dorsal se convierte en select; Equipo y Nombre se rellenan automáticamente
+  const old = document.getElementById('fldDorsal');
+  if (old.tagName !== 'SELECT') {
+    const sel = document.createElement('select');
+    sel.id = 'fldDorsal';
+    old.parentElement.replaceChild(sel, old);
+  }
+  const selD = document.getElementById('fldDorsal');
+  selD.style.appearance = 'none';
+  selD.style.webkitAppearance = 'none';
+  selD.innerHTML = participantes.map(p =>
+    `<option value="${p.dorsal}">${p.dorsal}</option>`
+  ).join('');
+  document.getElementById('btnNextDorsal').disabled = false;
+
+  function expandir() {
+    participantes.forEach((p, i) => {
+      selD.options[i].text = `${p.dorsal} · ${p.equipo} · ${p.nombre}`;
+    });
+  }
+  function colapsar() {
+    participantes.forEach((p, i) => { selD.options[i].text = p.dorsal; });
+  }
+
+  selD.addEventListener('mousedown',  expandir);
+  selD.addEventListener('touchstart', expandir, { passive: true });
+  selD.addEventListener('blur',       colapsar);
+  selD.addEventListener('change',     () => { onDorsalChange(); colapsar(); });
+
+  colapsar();
+  onDorsalChange();
+}
+
+function onDorsalChange() {
+  const dorsal = document.getElementById('fldDorsal').value;
+  const p = participantes.find(p => p.dorsal === dorsal);
+  if (!p) return;
+  document.getElementById('fldEquipo').value = p.equipo;
+  document.getElementById('fldNombre').value = p.nombre;
+  updateOverlayFromFields();
+}
+
+function siguienteDorsal() {
+  if (!participantes.length) return;
+  const selD = document.getElementById('fldDorsal');
+  const selI = document.getElementById('fldIntento');
+  const idx  = participantes.findIndex(p => p.dorsal === selD.value);
+  let next   = idx + 1;
+  if (next >= participantes.length) {
+    next = 0;
+    let intento = parseInt(selI.value) + 1;
+    if (intento > 6) intento = 1;
+    selI.value = String(intento);
+  }
+  selD.value = participantes[next].dorsal;
+  onDorsalChange();
+  btnGrabar.disabled = !dirHandle || !mediaStream;
+  setNavEnabled(false);
+  ['fldIntento','fldDorsal','fldEquipo','fldNombre'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
+  updateOverlayFromFields();
+  // Mostrar cámara, limpiar gráfica, info de frame y zoom
+  zoomHReset();
+  camPreview.style.display  = 'block';
+  frameCanvas.style.display = 'none';
+  recordingDate = '';
+  document.getElementById('frameOverlay').innerHTML = '';
+  const _ctx = chartCanvas.getContext('2d');
+  _ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+}
+
+function onIntentoChange() {
+  if (!participantes.length) return;
+  const selD = document.getElementById('fldDorsal');
+  selD.value = participantes[0].dorsal;
+  onDorsalChange();
+  updateOverlayFromFields();
+}
+
+function updateOverlayFromFields() { /* campos ahora viven en el overlay */ }
+
+function resetParticipanteInputs() {
+  // Restaura Dorsal a input si era select
+  const old = document.getElementById('fldDorsal');
+  if (old.tagName === 'SELECT') {
+    const inp = document.createElement('input');
+    inp.id = 'fldDorsal'; inp.value = '1';
+    old.parentElement.replaceChild(inp, old);
+  }
+  document.getElementById('btnNextDorsal').disabled = true;
+}
+
+async function activarCamara(deviceId = null) {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  const constraints = {
+    video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+    audio: true
+  };
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+    camPreview.srcObject = mediaStream;
+    camPreview.style.display = 'block';
+    frameCanvas.style.display = 'none';
+    await enumerarCamaras();
+    document.getElementById('btnGuide').disabled = false;
+    document.getElementById('btnSelDir').disabled = false;
+    if (!deviceId) setStatus('Cámara activa. Selecciona un directorio para continuar.');
+  } catch(e) {
+    // facingMode 'environment' puede fallar en desktop; reintenta sin restricción
+    if (!deviceId) {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        camPreview.srcObject = mediaStream;
+        camPreview.style.display = 'block';
+        frameCanvas.style.display = 'none';
+        await enumerarCamaras();
+        document.getElementById('btnGuide').disabled = false;
+        document.getElementById('btnSelDir').disabled = false;
+        setStatus('Cámara activa. Selecciona un directorio para continuar.');
+      } catch(e2) {
+        // Sin cámara: al menos permitir seleccionar directorio
+        document.getElementById('btnSelDir').disabled = false;
+        setStatus('No se pudo acceder a la cámara: ' + e2.message);
+      }
+    } else {
+      setStatus('Error al cambiar cámara: ' + e.message);
+    }
+  }
+}
+
+async function enumerarCamaras() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const camaras = devices.filter(d => d.kind === 'videoinput');
+  const sel = document.getElementById('camSelect');
+  const currentId = mediaStream?.getVideoTracks()[0]?.getSettings()?.deviceId;
+  sel.innerHTML = camaras.map((d, i) =>
+    `<option value="${d.deviceId}"${d.deviceId === currentId ? ' selected' : ''}>${d.label || 'Cámara ' + (i + 1)}</option>`
+  ).join('');
+  sel.style.display = camaras.length > 1 ? '' : 'none';
+}
+
+async function cambiarCamara() {
+  const deviceId = document.getElementById('camSelect').value;
+  await activarCamara(deviceId);
+  btnGrabar.disabled = !dirHandle;
+}
+
+// Activar cámara al cargar la página
+window.addEventListener('load', () => activarCamara());
+
+// ═══════════════════════════════════════════════════════════
+//  GRABACIÓN
+// ═══════════════════════════════════════════════════════════
+let recStartTime    = null;
+let recTimerInterval= null;
+
+const recTimerEl = document.getElementById('recTimer');
+
+function startLiveAnalysis() {
+  bgData = null;
+  const bgFrames = [];
+  const extCtx = extractCanvas.getContext('2d', { willReadFrequently: true });
+  liveAnalysisInterval = setInterval(() => {
+    if (!camPreview.videoWidth) return;
+    extCtx.drawImage(camPreview, 0, 0, EXTRACT_W, EXTRACT_H);
+    const d = extCtx.getImageData(0, 0, EXTRACT_W, EXTRACT_H).data;
+    if (bgFrames.length < BG_FRAMES) {
+      bgFrames.push(new Uint8ClampedArray(d));
+      if (bgFrames.length === BG_FRAMES) bgData = buildBackground(bgFrames);
+    } else {
+      const t = (Date.now() - recStartTime) / 1000;
+      samples.push({ t, change: calcMotion(d, bgData), white: calcWhitePct(d) });
+      if (samples.length % 4 === 0) drawChart();
+    }
+  }, 33);
+}
+
+function stopLiveAnalysis() {
+  clearInterval(liveAnalysisInterval);
+  liveAnalysisInterval = null;
+}
+
+function iniciarGrabacion() {
+  if (!mediaStream) return;
+  recChunks = [];
+  const mime = getBestMime();
+  mediaRecorder = new MediaRecorder(mediaStream, { mimeType: mime });
+  mediaRecorder.ondataavailable = e => { if (e.data?.size) recChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    stopLiveAnalysis();
+    const liveSamples = [...samples];
+    clearInterval(recTimerInterval);
+    recTimerEl.style.display = 'none';
+    btnGrabar.disabled  = false;
+    const ext     = mime.includes('mp4') ? 'mp4' : 'webm';
+    const intento = document.getElementById('fldIntento').value.trim() || 'test';
+    const dorsal  = document.getElementById('fldDorsal').value.trim()  || 'test';
+    const equipo  = document.getElementById('fldEquipo').value.trim()  || 'test';
+    const nombre0 = document.getElementById('fldNombre').value.trim()  || 'test';
+    const now     = new Date();
+    const fecha   = now.getFullYear().toString()
+      + String(now.getMonth()+1).padStart(2,'0')
+      + String(now.getDate()).padStart(2,'0')
+      + String(now.getHours()).padStart(2,'0')
+      + String(now.getMinutes()).padStart(2,'0')
+      + String(now.getSeconds()).padStart(2,'0');
+    const nombre  = `${fecha}_${intento}_${dorsal}_${equipo}_${nombre0}.${ext}`;
+    const blob  = new Blob(recChunks, { type: mime });
+    await guardarEnDir(blob, nombre);
+    setStatus(`Guardado: ${nombre} — iniciando análisis…`);
+    setFileInfo(nombre);
+    const url = URL.createObjectURL(blob);
+    prepararAnalisis(url, nombre, liveSamples);
+  };
+  mediaRecorder.start(200);
+  btnGrabar.textContent = '■';
+  btnCargar.disabled    = true;
+  document.getElementById('btnSelDir').disabled = true;
+  setNavEnabled(false);
+  setRecordingMode(true);
+  // Limpiar frameOverlay y guardar fecha
+  const _n = new Date(), _p = n => String(n).padStart(2,'0');
+  recordingDate = `${_p(_n.getDate())}/${_p(_n.getMonth()+1)}/${String(_n.getFullYear()).slice(2)} ${_p(_n.getHours())}:${_p(_n.getMinutes())}:${_p(_n.getSeconds())}`;
+  document.getElementById('frameOverlay').innerHTML = recordingDate;
+
+  camPreview.style.display  = 'block';
+  frameCanvas.style.display = 'none';
+
+  // Timer sobre el vídeo
+  recTimerEl.style.display = 'block';
+  recStartTime = Date.now();
+  recTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recStartTime) / 1000);
+    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const ss = String(elapsed % 60).padStart(2, '0');
+    recTimerEl.textContent = `⏺ ${mm}:${ss}`;
+  }, 500);
+  samples = [];
+  startLiveAnalysis();
+  setStatus('Grabando…', true);
+}
+
+function detenerGrabacion() {
+  if (mediaRecorder?.state !== 'inactive') mediaRecorder.stop();
+  clearInterval(recTimerInterval);
+  btnGrabar.textContent = '●';
+  btnGrabar.disabled    = true; // se re-habilita en onstop tras guardar
+  btnCargar.disabled    = dirHandle ? false : true;
+  document.getElementById('btnSelDir').disabled = false;
+  setRecordingMode(false);
+}
+
+function toggleGrabacion() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    detenerGrabacion();
+  } else {
+    iniciarGrabacion();
+  }
+}
+
+async function guardarEnDir(blob, nombre) {
+  try {
+    const fh = await dirHandle.getFileHandle(nombre, { create: true });
+    const wr = await fh.createWritable();
+    await wr.write(blob); await wr.close();
+  } catch(e) {
+    // fallback: descarga directa
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nombre; a.click();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CARGAR DESDE DIRECTORIO
+// ═══════════════════════════════════════════════════════════
+const VIDEO_EXTS = ['.mp4','.webm','.mov','.avi','.mkv'];
+
+async function cargarDesdeDir() {
+  if (dirHandle) {
+    // Enumerar vídeos del directorio sin salir de él
+    const entries = [];
+    for await (const [name, handle] of dirHandle.entries()) {
+      if (handle.kind === 'file' && VIDEO_EXTS.some(e => name.toLowerCase().endsWith(e)))
+        entries.push({ name, handle });
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    if (!entries.length) { setStatus('No hay vídeos en el directorio'); return; }
+    showFilePicker(entries);
+  } else {
+    document.getElementById('fileInput').click();
+  }
+}
+
+function showFilePicker(entries) {
+  const list = document.getElementById('filePickerList');
+  list.innerHTML = '';
+  entries.forEach(({ name, handle }) => {
+    const div = document.createElement('div');
+    div.textContent = name;
+    div.onclick = async () => {
+      closeFilePicker();
+      const file = await handle.getFile();
+      setStatus(`Cargado: ${file.name} — iniciando análisis…`);
+      setFileInfo(file.name, file);
+      prepararAnalisis(URL.createObjectURL(file), file.name);
+    };
+    list.appendChild(div);
+  });
+  document.getElementById('filePickerModal').style.display = 'flex';
+}
+
+function closeFilePicker() {
+  document.getElementById('filePickerModal').style.display = 'none';
+}
+
+// Listener para el input de fichero (mobile fallback)
+document.getElementById('fileInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  setStatus(`Cargado: ${file.name} — iniciando análisis…`);
+  setFileInfo(file.name, file);
+  prepararAnalisis(URL.createObjectURL(file), file.name);
+  this.value = ''; // reset para poder cargar el mismo fichero otra vez
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CACHÉ JSON POR FICHERO
+// ═══════════════════════════════════════════════════════════
+async function saveAnalysis(videoName, data) {
+  if (!dirHandle || !videoName) return;
+  try {
+    const fh = await dirHandle.getFileHandle(videoName + '.analysis.json', { create: true });
+    const wr = await fh.createWritable();
+    await wr.write(JSON.stringify(data));
+    await wr.close();
+  } catch(e) {
+    console.warn('saveAnalysis error:', e);
+  }
+}
+
+async function loadAnalysis(videoName) {
+  if (!dirHandle || !videoName) return null;
+  try {
+    const fh   = await dirHandle.getFileHandle(videoName + '.analysis.json');
+    const file = await fh.getFile();
+    return JSON.parse(await file.text());
+  } catch(e) {
+    return null;
+  }
+}
+
+function isValidCache(cached) {
+  if (!cached || !Array.isArray(cached.samples) || !cached.samples.length) return false;
+  if (!isFinite(analyzeVideo.duration)) return false;
+  return Math.abs(cached.duration - analyzeVideo.duration) < 0.5;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ANÁLISIS
+// ═══════════════════════════════════════════════════════════
+function prepararAnalisis(url, videoName = null, liveSamples = null) {
+  // Ocultar cámara, mostrar canvas de frames
+  camPreview.style.display  = 'none';
+  frameCanvas.style.display = 'block';
+
+
+  analyzeReady = false;
+  samples      = [];
+  bgData       = null;
+  frameCount   = 0;
+  currentFrame = 0;
+  playing      = false;
+  clearTimeout(playTimer);
+  btnPlay.textContent = '▶';
+  setNavEnabled(false);
+  // Limpiar gráfica
+  const ctx0 = chartCanvas.getContext('2d');
+  ctx0.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+
+  analyzeVideo.src = url;
+  analyzeVideo.load();
+  analyzeVideo.onloadedmetadata = async () => {
+    videoFPS = 30;
+
+    // WebM de MediaRecorder no incluye duración en el header → duration = Infinity.
+    // Solución: seek al final forzado para que el browser calcule la duración real.
+    if (!isFinite(analyzeVideo.duration)) {
+      setStatus('Calculando duración del WebM…');
+      await seekTo(analyzeVideo, 1e9);   // el browser busca hasta el final y actualiza duration
+      await seekTo(analyzeVideo, 0);
+    }
+
+    frameCount = Math.round(analyzeVideo.duration * videoFPS);
+    frameCanvas.width  = analyzeVideo.videoWidth  || 640;
+    frameCanvas.height = analyzeVideo.videoHeight || 360;
+    analyzeReady = true;
+    await goFrame(0);
+
+    if (liveSamples && liveSamples.length) {
+      samples = liveSamples;
+      const bestIdx = samples.reduce((best, s, i) => s.change > samples[best].change ? i : best, 0);
+      keyFrame = Math.round(samples[bestIdx].t * videoFPS);
+      setNavEnabled(true);
+      drawChart();
+      await goFrame(keyFrame);
+      setStatus('');
+      if (videoName && dirHandle) {
+        await saveAnalysis(videoName, { samples, keyFrame, duration: analyzeVideo.duration, frameCount, videoFPS });
+      }
+      return;
+    }
+
+    const cached = await loadAnalysis(videoName);
+    if (isValidCache(cached)) {
+      samples  = cached.samples;
+      keyFrame = cached.keyFrame;
+      setNavEnabled(true);
+      drawChart();
+      await goFrame(keyFrame);
+      setStatus('');
+    } else {
+      escanear(videoName);
+    }
+  };
+}
+
+async function escanear(videoName = null) {
+  if (!analyzeReady || scanning) return;
+  scanning = true;
+  samples  = [];
+
+  const duration = analyzeVideo.duration;
+  const extCtx   = extractCanvas.getContext('2d', { willReadFrequently: true });
+  const pw = document.getElementById('progressWrap');
+  const pb = document.getElementById('progressBar');
+  pw.style.display = 'block'; pb.style.width = '0%';
+  setStatus('Escaneando…');
+
+  const tStart = performance.now();
+  await seekTo(analyzeVideo, 0);
+
+  bgData = null;
+  const bgFrames = [];
+
+  await new Promise(resolve => {
+    function onFrame(now, metadata) {
+      const t = metadata.mediaTime;
+      extCtx.drawImage(analyzeVideo, 0, 0, EXTRACT_W, EXTRACT_H);
+      const d = extCtx.getImageData(0, 0, EXTRACT_W, EXTRACT_H).data;
+
+      if (bgFrames.length < BG_FRAMES) {
+        bgFrames.push(new Uint8ClampedArray(d));
+        if (bgFrames.length === BG_FRAMES) bgData = buildBackground(bgFrames);
+      } else {
+        samples.push({ t, change: calcMotion(d, bgData), white: calcWhitePct(d) });
+        pb.style.width = Math.min((t / duration) * 100, 100).toFixed(1) + '%';
+        if (samples.length % 8 === 0) drawChart();
+      }
+
+      if (!analyzeVideo.ended && t < duration - 0.05) {
+        analyzeVideo.requestVideoFrameCallback(onFrame);
+      } else {
+        resolve();
+      }
+    }
+
+    analyzeVideo.requestVideoFrameCallback(onFrame);
+    analyzeVideo.play();
+    analyzeVideo.addEventListener('ended', resolve, { once: true });
+  });
+
+  analyzeVideo.pause();
+
+  scanning = false;
+  pw.style.display = 'none';
+
+  const bestIdx = samples.reduce((best, s, i) => s.change > samples[best].change ? i : best, 0);
+  keyFrame = Math.round(samples[bestIdx].t * videoFPS);
+
+  setNavEnabled(true);
+  drawChart();
+  await goFrame(keyFrame);
+  setStatus('');
+
+  if (videoName && dirHandle) {
+    await saveAnalysis(videoName, { samples, keyFrame, duration: analyzeVideo.duration, frameCount, videoFPS });
+  }
+}
+
+// Promedia N frames RGBA en un Float32Array de luminancias
+function buildBackground(frames) {
+  const n = frames[0].length / 4;
+  const bg = new Float32Array(n);
+  for (const f of frames) {
+    for (let i = 0, p = 0; i < n; i++, p += 4)
+      bg[i] += 0.299 * f[p] + 0.587 * f[p+1] + 0.114 * f[p+2];
+  }
+  for (let i = 0; i < n; i++) bg[i] /= frames.length;
+  return bg;
+}
+
+// % de píxeles con cambio significativo respecto al fondo, compensando iluminación global
+function calcMotion(data, bg) {
+  const n = data.length / 4;
+  // Paso 1: offset global de iluminación
+  let sumDiff = 0;
+  for (let i = 0, p = 0; i < n; i++, p += 4)
+    sumDiff += (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) - bg[i];
+  const offset = sumDiff / n;
+  // Paso 2: contar píxeles con cambio local > umbral
+  let count = 0;
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    const lum = 0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2];
+    if (Math.abs(lum - bg[i] - offset) > MOTION_THR) count++;
+  }
+  return (count / n) * 100;
+}
+
+function calcWhitePct(data) {
+  let w = 0;
+  const total = data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] >= whiteThreshold && data[i+1] >= whiteThreshold && data[i+2] >= whiteThreshold) w++;
+  }
+  return (w / total) * 100;
+}
+
+// Búsqueda binaria: muestra más cercana al tiempo t
+function nearestSample(t) {
+  if (!samples.length) return null;
+  let lo = 0, hi = samples.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (samples[mid].t < t) lo = mid + 1; else hi = mid;
+  }
+  return samples[lo];
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAVEGACIÓN DE FRAMES (framerate nativo)
+// ═══════════════════════════════════════════════════════════
+let goFrameToken = 0;
+
+async function goFrame(frameIdx) {
+  if (!analyzeReady) return;
+  frameIdx = Math.max(0, Math.min(frameIdx, frameCount - 1));
+  currentFrame = frameIdx;
+  const myToken = ++goFrameToken;
+
+  const t = frameIdx / videoFPS;
+  await seekTo(analyzeVideo, Math.min(t, analyzeVideo.duration - 0.001));
+
+  if (myToken !== goFrameToken) return; // llamada más reciente en curso, descartar
+
+  const ctx = frameCanvas.getContext('2d');
+  ctx.drawImage(analyzeVideo, 0, 0, frameCanvas.width, frameCanvas.height);
+
+  const s = nearestSample(t);
+  const line2 = s ? `${s.white.toFixed(1)}% blanco  Δ${s.change.toFixed(1)}%` : '';
+  document.getElementById('frameOverlay').innerHTML =
+    (recordingDate ? recordingDate + '<br>' : '') +
+    `Frame ${frameIdx}&nbsp;/&nbsp;${frameCount - 1}&nbsp;&nbsp;t=${t.toFixed(3)}s` +
+    (line2 ? `<br>${line2}` : '');
+
+  if (samples.length) drawChart();
+}
+
+// stepFrame usa frames nativos
+function stepFrame(delta) { goFrame(currentFrame + delta); }
+
+
+// ═══════════════════════════════════════════════════════════
+//  PLAY
+// ═══════════════════════════════════════════════════════════
+function setNavEnabled(on) {
+  document.querySelectorAll('#frameNav button').forEach(b => b.disabled = !on);
+  if (on) {
+    btnGrabar.disabled = true;
+    ['fldIntento','fldDorsal','fldEquipo','fldNombre'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
+  }
+}
+
+function applyHZoom() {
+  const t = hZoom !== 1 ? `scaleX(${hZoom})` : '';
+  camPreview.style.transform  = t;
+  frameCanvas.style.transform = t;
+  document.getElementById('btnZoomH').classList.toggle('zoom-active', hZoom !== 1);
+}
+function zoomHIn() {
+  hZoom = Math.min(+(hZoom * 1.5).toFixed(2), 6);
+  applyHZoom();
+}
+function zoomHReset() {
+  hZoom = 1;
+  applyHZoom();
+}
+
+function setRecordingMode(on) {
+  const ids = ['btnNextDorsal','btnGuide','btnReloadPart'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = on || !dirHandle;
+  });
+  if (on) {
+    ['fldIntento','fldDorsal','fldEquipo','fldNombre'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
+  }
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  document.getElementById('btnFullscreen').textContent =
+    document.fullscreenElement ? '⊡' : '⛶';
+});
+
+function toggleGuide() {
+  const gl  = document.getElementById('guideLine');
+  const btn = document.getElementById('btnGuide');
+  const on  = gl.classList.toggle('active');
+  btn.classList.toggle('btn-primary', on);
+  btn.classList.toggle('btn-neutral', !on);
+}
+
+async function toggleView() {
+  if (mediaStream) {
+    // Apagar cámara
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+    camPreview.srcObject = null;
+    camPreview.style.display = 'none';
+    document.getElementById('camSelect').style.display = 'none';
+    document.getElementById('guideLine').classList.remove('active');
+    document.getElementById('btnGuide').disabled = true;
+    document.getElementById('btnGuide').className = 'btn-neutral';
+    btnGrabar.disabled = true;
+    if (analyzeReady) frameCanvas.style.display = 'block';
+  } else {
+    // Encender cámara
+    await activarCamara();
+    btnGrabar.disabled = !dirHandle;
+  }
+}
+
+function togglePlay() {
+  playing = !playing;
+  btnPlay.textContent = playing ? '⏸' : '▶';
+  if (playing) playLoop();
+}
+
+function playLoop() {
+  if (!playing) return;
+  if (currentFrame + 1 >= frameCount) { playing = false; btnPlay.textContent = '▶'; return; }
+  goFrame(currentFrame + 1).then(() => {
+    playTimer = setTimeout(playLoop, 1000 / videoFPS);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GRÁFICA
+// ═══════════════════════════════════════════════════════════
+const PAD = { top: 6, bottom: 6, left: 6, right: 6 };
+
+function drawChart() {
+  if (!samples.length) return;
+
+  const W = chartCanvas.parentElement.offsetWidth || 720;
+  const H = 100;
+  chartCanvas.width = W; chartCanvas.height = H;
+  const gW       = W - PAD.left - PAD.right;
+  const gH       = H - PAD.top  - PAD.bottom;
+  const duration = (analyzeVideo.duration > 0 && isFinite(analyzeVideo.duration))
+    ? analyzeVideo.duration
+    : (samples.length ? samples[samples.length - 1].t || 1 : 1);
+  const ctx      = chartCanvas.getContext('2d');
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, W, H);
+
+  const tToX = t => PAD.left + (t / duration) * gW;
+  const vToY = v => PAD.top  + gH - (Math.min(v, 100) / 100) * gH;
+
+  // Grid Y (solo líneas, sin etiquetas)
+  ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 1;
+  [0, 25, 50, 75, 100].forEach(v => {
+    const y = vToY(v);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + gW, y); ctx.stroke();
+  });
+
+  // Escala de cambio (normalizada al pico)
+  const maxChange = Math.max(...samples.map(s => s.change), 0.01);
+  const changeToY = v => vToY((v / maxChange) * 100);
+
+  // Curva % blanco (secundaria, azul tenue)
+  ctx.beginPath(); ctx.strokeStyle = 'rgba(74,158,255,0.4)'; ctx.lineWidth = 1;
+  samples.forEach((s, i) => {
+    i === 0 ? ctx.moveTo(tToX(s.t), vToY(s.white)) : ctx.lineTo(tToX(s.t), vToY(s.white));
+  });
+  ctx.stroke();
+
+  // Área Δ cambio (verde)
+  ctx.beginPath();
+  samples.forEach((s, i) => {
+    i === 0 ? ctx.moveTo(tToX(s.t), changeToY(s.change)) : ctx.lineTo(tToX(s.t), changeToY(s.change));
+  });
+  ctx.lineTo(tToX(samples[samples.length - 1].t), PAD.top + gH);
+  ctx.lineTo(tToX(samples[0].t), PAD.top + gH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(40,200,100,0.15)'; ctx.fill();
+
+  // Curva Δ cambio (principal, verde)
+  ctx.beginPath(); ctx.strokeStyle = '#28c864'; ctx.lineWidth = 2;
+  samples.forEach((s, i) => {
+    i === 0 ? ctx.moveTo(tToX(s.t), changeToY(s.change)) : ctx.lineTo(tToX(s.t), changeToY(s.change));
+  });
+  ctx.stroke();
+
+  // Línea frame clave (naranja, punteada)
+  if (keyFrame > 0) {
+    const kx = tToX(keyFrame / videoFPS);
+    ctx.beginPath(); ctx.strokeStyle = '#e07b00'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.moveTo(kx, PAD.top); ctx.lineTo(kx, PAD.top + gH); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Línea frame actual (roja, sólida) + punto en curva de cambio
+  const curT = currentFrame / videoFPS;
+  const cx   = tToX(curT);
+  const s    = nearestSample(curT);
+  const cy   = s ? changeToY(s.change) : PAD.top + gH;
+  ctx.beginPath(); ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.moveTo(cx, PAD.top); ctx.lineTo(cx, PAD.top + gH); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff4444'; ctx.fill();
+}
+
+// ─── Drag en gráfica ────────────────────────────────────────
+function chartClientXtoFrame(clientX) {
+  const rect = chartCanvas.getBoundingClientRect();
+  const gW   = chartCanvas.width - PAD.left - PAD.right;
+  const relX = (clientX - rect.left) * (chartCanvas.width / rect.width) - PAD.left;
+  const t    = Math.max(0, Math.min(1, relX / gW)) * analyzeVideo.duration;
+  return Math.round(t * videoFPS);
+}
+
+let chartDragging = false;
+const chartBlocked = () => !samples.length || !btnGrabar.disabled;
+chartCanvas.addEventListener('mousedown', e => {
+  if (chartBlocked()) return;
+  chartDragging = true; goFrame(chartClientXtoFrame(e.clientX));
+});
+window.addEventListener('mousemove', e => {
+  if (!chartDragging || chartBlocked()) return;
+  goFrame(chartClientXtoFrame(e.clientX));
+});
+window.addEventListener('mouseup', () => { chartDragging = false; });
+chartCanvas.addEventListener('touchstart', e => {
+  if (chartBlocked()) return;
+  goFrame(chartClientXtoFrame(e.touches[0].clientX));
+}, { passive: true });
+chartCanvas.addEventListener('touchmove', e => {
+  if (chartBlocked()) return;
+  goFrame(chartClientXtoFrame(e.touches[0].clientX));
+}, { passive: true });
+
+// ═══════════════════════════════════════════════════════════
+//  UTILIDADES
+// ═══════════════════════════════════════════════════════════
+function seekTo(video, t) {
+  return new Promise(resolve => {
+    if (Math.abs(video.currentTime - t) < 0.001) { resolve(); return; }
+    const timer = setTimeout(resolve, 4000); // seguridad: WebM sin índice puede tardar mucho
+    video.onseeked = () => { clearTimeout(timer); resolve(); };
+    video.currentTime = t;
+  });
+}
+function yieldFrame() { return new Promise(r => requestAnimationFrame(r)); }
+function getBestMime() {
+  const list = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  return list.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+}
+function parseFileName(nombre) {
+  // Formato: {YYYYMMDDHHmmss}_{Intento}_{Dorsal}_{Equipo}_{Nombre}
+  const m = nombre.match(/^(\d{14})_([^_]+)_([^_]+)_([^_]+)_(.+)$/);
+  if (!m) return null;
+  const f = m[1]; // YYYYMMDDHHmmss
+  const fechaStr = `${f.slice(6,8)}/${f.slice(4,6)}/${f.slice(2,4)}  ${f.slice(8,10)}:${f.slice(10,12)}:${f.slice(12,14)}`;
+  return { intento: m[2], dorsal: m[3], equipo: m[4], nombre: m[5], fechaStr };
+}
+
+function setFileInfo(nombre, file) {
+  const sinExt = nombre.replace(/\.[^.]+$/, '');
+  const p = parseFileName(sinExt);
+  if (p) {
+    document.getElementById('fldIntento').value = p.intento;
+    document.getElementById('fldDorsal').value  = p.dorsal;
+    document.getElementById('fldEquipo').value  = p.equipo;
+    document.getElementById('fldNombre').value  = p.nombre;
+    recordingDate = p.fechaStr;
+  } else {
+    document.getElementById('fldDorsal').value = '';
+    document.getElementById('fldEquipo').value = '';
+    document.getElementById('fldNombre').value = sinExt;
+    if (file?.lastModified) {
+      const d = new Date(file.lastModified), z = n => String(n).padStart(2,'0');
+      recordingDate = `${z(d.getDate())}/${z(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+    } else {
+      recordingDate = sinExt;
+    }
+  }
+  document.getElementById('frameOverlay').innerHTML = recordingDate;
+  if (dirHandle) document.getElementById('ovDir').textContent = dirHandle.name;
+}
+function setStatus(msg, isRec = false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (isRec ? ' rec' : '');
+}
+window.addEventListener('resize', () => { if (samples.length) drawChart(); });
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

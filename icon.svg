@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo -->
+  <rect width="512" height="512" rx="72" fill="#1a1a2e"/>
+
+  <!-- Fondo de pista (arena/pista indoor) -->
+  <rect x="0" y="300" width="512" height="212" rx="0" fill="#c8a96e" opacity="0.25"/>
+
+  <!-- Tabla de batida: blanco (plastilina) + rojo (tabla) -->
+  <rect x="0"   y="310" width="512" height="80" fill="#cc2222"/>
+  <rect x="0"   y="310" width="220" height="80" fill="#f0ece0"/>
+  <!-- Línea divisoria tabla -->
+  <rect x="218" y="310" width="5"   height="80" fill="#cc2222"/>
+
+  <!-- Suela de la zapatilla -->
+  <path d="M30,305 C40,290 100,265 200,268 C290,270 370,285 440,308 C420,325 60,330 30,305 Z"
+        fill="#2a2a2a"/>
+
+  <!-- Cuerpo principal de la zapatilla (vista lateral-frontal baja) -->
+  <path d="M55,300
+           C50,250 70,190 120,160
+           C165,133 220,128 270,135
+           C330,143 390,175 430,230
+           C440,250 440,275 435,300
+           C350,285 150,285 55,300 Z"
+        fill="#ddd8cc"/>
+
+  <!-- Suela lateral visible -->
+  <path d="M55,300 C50,310 55,322 75,325 C200,332 400,325 435,308 C437,295 435,282 430,270
+           C420,285 300,298 55,300 Z"
+        fill="#e8e4d8"/>
+
+  <!-- Detalle: lengüeta / parte superior -->
+  <path d="M190,130 C200,108 230,100 255,108 C250,135 210,138 190,130 Z"
+        fill="#c8c4b8"/>
+
+  <!-- Logo Nike esquemático (swoosh) -->
+  <path d="M160,210 C200,185 310,198 370,220 C310,235 175,235 160,210 Z"
+        fill="#555" opacity="0.5"/>
+
+  <!-- Cordones: líneas horizontales -->
+  <line x1="175" y1="175" x2="290" y2="168" stroke="#aaa" stroke-width="5" stroke-linecap="round"/>
+  <line x1="165" y1="195" x2="305" y2="186" stroke="#aaa" stroke-width="4" stroke-linecap="round"/>
+  <line x1="158" y1="215" x2="310" y2="205" stroke="#aaa" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Gráfica en la parte inferior -->
+  <rect x="0" y="400" width="512" height="112" fill="#12131a" opacity="0.85"/>
+  <polyline
+    points="30,460 80,455 125,458 165,418 195,445 228,395 262,445 300,458 360,453 430,450 482,453"
+    stroke="#00c853" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Pico de batida -->
+  <circle cx="228" cy="395" r="8" fill="#ff5252"/>
+  <line x1="228" y1="404" x2="228" y2="460" stroke="#ff5252" stroke-width="3" stroke-dasharray="5,4" opacity="0.8"/>
+</svg>
