@@ -1,4 +1,4 @@
-const CACHE = 'batida-v1';
+const CACHE = 'batida-v2';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -22,10 +22,13 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (!e.request.url.startsWith(self.location.origin)) return;
+  // Navegación: siempre desde caché, nunca red
+  if (e.request.mode === 'navigate') {
+    e.respondWith(caches.match('./index.html'));
+    return;
+  }
+  // Resto de recursos: caché primero, sin red
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).catch(() => caches.match('./index.html'));
-    })
+    caches.match(e.request).then(cached => cached || caches.match('./index.html'))
   );
 });

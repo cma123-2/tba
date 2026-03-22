@@ -254,16 +254,6 @@
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 
     /* ── Info directorio + fichero ──────────────────────── */
-    .dir-info {
-      display: none;
-      font-size: .8rem; color: #7ec8e3;
-      background: rgba(126,200,227,.1);
-      padding: 5px 14px; border-radius: 6px;
-      text-align: center; gap: 16px;
-      width: 100%; max-width: 760px;
-      flex-wrap: wrap; justify-content: center;
-    }
-    .dir-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; }
 
   </style>
 </head>
@@ -872,6 +862,7 @@ function iniciarGrabacion() {
   btnGrabar.textContent = '■';
   btnCargar.disabled    = true;
   document.getElementById('btnSelDir').disabled = true;
+  videoFPS = camConfig.fps;
   setNavEnabled(false);
   setRecordingMode(true);
   // Limpiar frameOverlay y guardar fecha
@@ -901,7 +892,7 @@ function detenerGrabacion() {
   clearInterval(recTimerInterval);
   btnGrabar.textContent = '●';
   btnGrabar.disabled    = true; // se re-habilita en onstop tras guardar
-  btnCargar.disabled    = dirHandle ? false : true;
+  btnCargar.disabled    = !dirHandle;
   document.getElementById('btnSelDir').disabled = false;
   setRecordingMode(false);
 }
@@ -1130,6 +1121,7 @@ async function escanear(videoName = null) {
   scanning = false;
   pw.style.display = 'none';
 
+  if (!samples.length) { setStatus('Sin movimiento detectado.'); return; }
   const bestIdx = samples.reduce((best, s, i) => s.change > samples[best].change ? i : best, 0);
   keyFrame = Math.round(samples[bestIdx].t * videoFPS);
 
