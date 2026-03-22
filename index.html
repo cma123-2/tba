@@ -1474,9 +1474,30 @@ function setStatus(msg, isRec = false) {
 window.addEventListener('resize', () => { if (samples.length) drawChart(); });
 </script>
 <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => {
+      reg.onupdatefound = () => {
+        const newWorker = reg.installing;
+
+        newWorker.onstatechange = () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // 👉 Nueva versión disponible
+            showUpdateMessage();
+          }
+        };
+      };
+    });
+} 
+
+function showUpdateMessage() {
+  const btn = document.createElement('button');
+  btn.textContent = 'Actualizar app';
+  btn.onclick = () => {
+    window.location.reload();
+  };
+  document.body.appendChild(btn);
+}
 </script>
 </body>
 </html>

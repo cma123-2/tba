@@ -3,7 +3,6 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './logo.png',
-  './icon.svg',
   './icon.png'
 ];
 
@@ -22,9 +21,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Solo cachear recursos propios; dejar pasar peticiones externas (cámara, etc.)
   if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).catch(() => caches.match('./index.html'));
+    })
   );
 });
