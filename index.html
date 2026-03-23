@@ -87,7 +87,7 @@
       .video-chart-wrap { flex-direction: row; align-items: center; }
       .video-col        { order: 2; }
       #frameNav         { order: 3; flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 3px; }
-      #frameNav button  { width: 2.3rem; height: calc((100svh - 20px) / 8 - 3px); max-height: 2.0rem; }
+      #frameNav button  { width: 2.2rem; height: calc((100svh - 20px) / 8 - 3px); max-height: 2.0rem; }
       .btn-row          { order: 1; flex-direction: column; flex-wrap: nowrap; justify-content: center; width: auto; }
       .video-area video,
       .video-area canvas.frame-view { max-height: calc(100svh - 20px); }
@@ -111,9 +111,9 @@
     /* ── Fila nav frames ────────────────────────────────── */
     #frameNav {
       display: flex; gap: 6px; justify-content: center;
-      flex-wrap: wrap; order: 2;
+      flex-wrap: nowrap; order: 2;
     }
-    #frameNav button { flex: 0 0 auto; width: 2.3rem; height: 2.0rem; padding: 0; line-height: 1; }
+    #frameNav button { flex: 0 0 auto; width: 2.2rem; height: 2.0rem; padding: 0; line-height: 1; }
 
     /* ── Gráfica ────────────────────────────────────────── */
     .chart-wrap {
@@ -173,9 +173,9 @@
     }
     .ov-top img { height: 30px; flex-shrink: 0; }
     .ov-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .ov-dir { font-size: .75rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.1em; }
+    .ov-dir { font-size: .8rem; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.1em; }
     .ov-fields-row {
-      display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+      display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;
     }
     .ov-fields-row input,
     .ov-fields-row select {
@@ -188,7 +188,7 @@
     #fldIntento { width: 2rem; background: #c9a000 !important; color: #000 !important; font-weight: bold; font-size: .8rem; }
     #fldDorsal  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
     #fldEquipo  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
-    #fldNombre  { flex: 1; min-width: 10rem; width: 100%; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
+    #fldNombre  { flex: 1; min-width: 8rem; max-width: 24rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #fldIntento, #fldDorsal { appearance: none; -webkit-appearance: none; }
     #btnPlay { background: #495057; color: #4a9eff; }
     #filePickerModal {
