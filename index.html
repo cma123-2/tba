@@ -86,8 +86,8 @@
     @media (orientation: landscape) {
       .video-chart-wrap { flex-direction: row; align-items: center; }
       .video-col        { order: 2; }
-      #frameNav         { order: 3; flex-direction: column; flex-wrap: nowrap; justify-content: center; }
-      #frameNav button  { width: 2.6rem; height: 2.0rem; }
+      #frameNav         { order: 3; flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 3px; }
+      #frameNav button  { width: 2.2rem; height: calc((100svh - 20px) / 8 - 3px); max-height: 2.0rem; }
       .btn-row          { order: 1; flex-direction: column; flex-wrap: nowrap; justify-content: center; width: auto; }
       .video-area video,
       .video-area canvas.frame-view { max-height: calc(100svh - 20px); }
@@ -185,10 +185,10 @@
     }
     .ov-fields-row input:disabled,
     .ov-fields-row select:disabled { color: rgba(238,238,255,.3); }
-    #fldIntento { width: 2.8rem; }
-    #fldDorsal  { width: 4.5rem; max-width: 10rem; }
-    #fldEquipo  { width: 5rem; }
-    #fldNombre  { flex: 1; min-width: 4rem; width: 100%; }
+    #fldIntento { width: 2rem; background: #c9a000 !important; color: #000 !important; font-weight: bold; font-size: .8rem; }
+    #fldDorsal  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
+    #fldEquipo  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
+    #fldNombre  { flex: 1; min-width: 16rem; width: 100%; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
     #fldIntento, #fldDorsal { appearance: none; -webkit-appearance: none; }
     #btnPlay { background: #495057; color: #4a9eff; }
     #filePickerModal {
@@ -299,11 +299,13 @@
           <button class="btn-danger"  id="btnGrabar"     onclick="toggleGrabacion()"  disabled title="Grabar / Detener">●</button>
           <button class="btn-primary" id="btnNextDorsal" onclick="siguienteDorsal()" disabled title="Siguiente dorsal">→</button>
         </div>
-        <div class="copyright">© 2026 cma</div>
+        <div class="copyright">© 2026 Carlos Miguel</div>
       </div>
     </div>
     <!-- Modal selector de ficheros del directorio -->
     <div id="filePickerModal" style="display:none">
+      <input id="filePickerFilter" type="search" placeholder="Filtrar…" oninput="filtrarFicheros(this.value)"
+        style="margin:6px;padding:5px 8px;border-radius:6px;border:1px solid #2a2a4a;background:#1e1e30;color:#dde;font-size:.82rem;outline:none;">
       <div id="filePickerList"></div>
       <button class="btn-neutral" onclick="closeFilePicker()" style="margin:4px;align-self:flex-end">✕ Cancelar</button>
     </div>
@@ -447,6 +449,12 @@
       <div class="help-desc"><b>Línea guía</b> — Muestra u oculta una línea vertical central sobre el vídeo.</div>
     </div>
 
+    <p style="font-size:.75rem;color:#666;margin-top:10px;line-height:1.5;">
+      <em>Tabla de Batida ha sido desarrollada por <strong>Carlos Miguel</strong> como herramienta de apoyo al juzgamiento en competiciones de atletismo.</em>
+    </p>
+    <p style="font-size:.72rem;color:#888;line-height:1.5;">
+      © 2026 Carlos Miguel. Todos los derechos reservados. Queda prohibida la reproducción, distribución o modificación de este software sin autorización expresa del autor.
+    </p>
     <button id="helpClose" onclick="toggleHelp()">Cerrar</button>
   </div>
 </div>
@@ -938,22 +946,38 @@ async function cargarDesdeDir() {
   }
 }
 
+let filePickerEntries = [];
+
 function showFilePicker(entries) {
+  filePickerEntries = entries;
+  document.getElementById('filePickerFilter').value = '';
+  renderFilePicker('');
+  document.getElementById('filePickerModal').style.display = 'flex';
+  document.getElementById('filePickerFilter').focus();
+}
+
+function renderFilePicker(filtro) {
+  const q    = filtro.toLowerCase();
   const list = document.getElementById('filePickerList');
   list.innerHTML = '';
-  entries.forEach(({ name, handle }) => {
-    const div = document.createElement('div');
-    div.textContent = name;
-    div.onclick = async () => {
-      closeFilePicker();
-      const file = await handle.getFile();
-      setStatus(`Cargado: ${file.name} — iniciando análisis…`);
-      setFileInfo(file.name, file);
-      prepararAnalisis(URL.createObjectURL(file), file.name);
-    };
-    list.appendChild(div);
-  });
-  document.getElementById('filePickerModal').style.display = 'flex';
+  filePickerEntries
+    .filter(({ name }) => !q || name.toLowerCase().includes(q))
+    .forEach(({ name, handle }) => {
+      const div = document.createElement('div');
+      div.textContent = name;
+      div.onclick = async () => {
+        closeFilePicker();
+        const file = await handle.getFile();
+        setStatus(`Cargado: ${file.name} — iniciando análisis…`);
+        setFileInfo(file.name, file);
+        prepararAnalisis(URL.createObjectURL(file), file.name);
+      };
+      list.appendChild(div);
+    });
+}
+
+function filtrarFicheros(valor) {
+  renderFilePicker(valor);
 }
 
 function closeFilePicker() {
@@ -1230,6 +1254,12 @@ function syncUI() {
   });
   // Navegación: activa solo al ver un fichero (grabar inactivo + hay muestras)
   document.querySelectorAll('#frameNav button').forEach(b => b.disabled = !enNavegacion);
+  // Zoom: también activo cuando la guía está visible
+  const guideActiva = document.getElementById('guideLine').classList.contains('active');
+  if (guideActiva) {
+    document.getElementById('btnZoomH').disabled     = false;
+    document.getElementById('btnZoomReset').disabled = false;
+  }
   // Chart: interactivo solo en navegación
   document.getElementById('chartWrap').style.pointerEvents = enNavegacion ? 'auto' : 'none';
 }
@@ -1285,6 +1315,7 @@ function toggleGuide() {
   const on  = gl.classList.toggle('active');
   btn.classList.toggle('btn-primary', on);
   btn.classList.toggle('btn-neutral', !on);
+  syncUI();
 }
 
 
