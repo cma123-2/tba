@@ -253,7 +253,40 @@
     .status.rec { color: #ff6b6b; font-weight: bold; animation: pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 
-    /* ── Info directorio + fichero ──────────────────────── */
+    /* ── Editor participantes ────────────────────────────── */
+    #partOverlay {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,.6); justify-content: center; align-items: center;
+    }
+    #partOverlay.open { display: flex; }
+    #partBox {
+      background: #1e1e30; color: #dde; border-radius: 12px;
+      padding: 14px; width: 96%; max-width: 700px; max-height: 85vh;
+      display: flex; flex-direction: column; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    #partBox h3 { font-size: .88rem; text-align: center; color: #aab; }
+    #partTableWrap { flex: 1; overflow-y: auto; min-height: 0; }
+    #partTable { width: 100%; border-collapse: collapse; font-size: .78rem; }
+    #partTable th {
+      background: #2a2a4a; color: #9ab; padding: 5px 6px;
+      text-align: left; cursor: pointer; user-select: none;
+      border-bottom: 2px solid #3a3a6a; white-space: nowrap;
+    }
+    #partTable th:hover { color: #4a9eff; }
+    #partTable th .sarr { margin-left: 3px; color: #4a9eff; font-size: .65rem; }
+    #partTable td { padding: 3px 4px; border-bottom: 1px solid #2a2a4a; vertical-align: middle; }
+    #partTable td input {
+      background: transparent; border: none; color: #dde;
+      font-size: .78rem; width: 100%; outline: none; min-width: 0;
+      padding: 2px 3px; border-radius: 3px;
+    }
+    #partTable td input:focus { background: rgba(74,158,255,.15); }
+    #partTable tr:hover td { background: rgba(255,255,255,.04); }
+    .part-del { background: #6e1a1a; color: #faa; border: none; border-radius: 5px;
+      padding: 2px 6px; cursor: pointer; font-size: .75rem; }
+    .part-del:hover { background: #dc3545; color: #fff; }
+    #partFooter { display: flex; gap: 8px; justify-content: space-between; align-items: center; }
 
   </style>
 </head>
@@ -337,9 +370,9 @@
     <button class="btn-neutral" id="btnCamSelect" onclick="mostrarCamaras()" title="Cambiar cámara"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
     <button class="btn-neutral" id="btnSelDir"     onclick="seleccionarDir()"      title="Seleccionar directorio" disabled>📁</button>
     <button class="btn-neutral" id="btnFullscreen" onclick="toggleFullscreen()"    title="Pantalla completa">⛶</button>
-    <button class="btn-neutral" id="btnReloadPart" onclick="reloadParticipantes()" title="Recargar participantes" disabled>↺</button>
     <button class="btn-neutral" id="btnCargar"     onclick="cargarDesdeDir()"      title="Cargar vídeo" disabled>🎞</button>
     <button class="btn-neutral" id="btnGuide"      onclick="toggleGuide()"         title="Línea guía central" disabled>⊕</button>
+    <button class="btn-neutral" id="btnParticipantes" onclick="abrirParticipantes()" title="Editar participantes" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
     <button class="btn-neutral" id="btnHelp"       onclick="toggleHelp()"          title="Ayuda">?</button>
   </div>
 
@@ -459,6 +492,37 @@
   </div>
 </div>
 
+<!-- Editor de participantes -->
+<div id="partOverlay" onclick="if(event.target===this)cerrarParticipantes()">
+  <div id="partBox">
+    <h3>Participantes</h3>
+    <div style="display:flex;gap:6px;justify-content:center;">
+      <button id="btnModeOrden"  onclick="setPartMode('orden')"  class="btn-primary" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Por Orden</button>
+      <button id="btnModeMejora" onclick="setPartMode('mejora')" class="btn-neutral" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Por Mejora</button>
+    </div>
+    <div id="partTableWrap">
+      <table id="partTable">
+        <thead><tr>
+          <th onclick="sortPart('orden')">Orden<span class="sarr" id="partSort-orden"></span></th>
+          <th onclick="sortPart('mejora')">Mejora<span class="sarr" id="partSort-mejora"></span></th>
+          <th onclick="sortPart('dorsal')">Dorsal<span class="sarr" id="partSort-dorsal"></span></th>
+          <th onclick="sortPart('equipo')">Equipo<span class="sarr" id="partSort-equipo"></span></th>
+          <th onclick="sortPart('nombre')">Nombre<span class="sarr" id="partSort-nombre"></span></th>
+          <th></th>
+        </tr></thead>
+        <tbody id="partTbody"></tbody>
+      </table>
+    </div>
+    <div id="partFooter">
+      <button class="btn-success" onclick="addPartRow()" style="font-size:.8rem;padding:6px 12px;">+ Añadir</button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveParticipantes()" style="font-size:.8rem;padding:6px 12px;border-radius:8px;border:none;background:#4a9eff;color:#fff;cursor:pointer;font-weight:bold;">Guardar</button>
+        <button onclick="cerrarParticipantes()" style="font-size:.8rem;padding:6px 12px;border-radius:8px;border:none;background:#2a2a4a;color:#dde;cursor:pointer;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Elementos ocultos -->
 <video  id="analyzeVideo"  style="display:none" preload="auto" muted></video>
 <canvas id="extractCanvas" style="display:none"></canvas>
@@ -527,7 +591,8 @@ async function seleccionarDir() {
     document.getElementById('ovDir').textContent = dirHandle.name;
     btnCargar.disabled  = false;
     btnGrabar.disabled  = !mediaStream;
-    document.getElementById('btnReloadPart').disabled = false;
+
+    document.getElementById('btnParticipantes').disabled = false;
     syncUI();
     camPreview.style.display  = 'block';
     frameCanvas.style.display = 'none';
@@ -540,24 +605,18 @@ async function seleccionarDir() {
   }
 }
 
-async function reloadParticipantes() {
-  if (!dirHandle) return;
-  const btn = document.getElementById('btnReloadPart');
-  btn.textContent = '↻';
-  await loadParticipantes();
-  btn.textContent = '↺';
-}
 
 const PARTICIPANTES_DEFAULT = `##################################################################
 #                                                                #
 # Fichero con el listado de participantes                        #
-# Orden;Dorsal;Equipo;Nombre                                     #
+# Orden;Mejora;Dorsal;Equipo;Nombre                             #
 #                                                                #
 # Admite líneas en blanco                                        #
 # Si comienzan por # se consideran comentarios                   #
 #                                                                #
 ##################################################################
-#1;Dorsal 1;Club 1;Nombre 1
+# Orden;Mejora;Dorsal;Equipo;Nombre
+#1;;D01;Club 1;Nombre 1
 `;
 
 async function loadParticipantes() {
@@ -576,7 +635,7 @@ async function loadParticipantes() {
     participantes = text.split('\n')
       .map(l => l.trim())
       .filter(l => l && !l.startsWith('#'))
-      .map(l => { const p = l.split(';'); return { orden: parseInt(p[0]?.trim()) || 0, dorsal: p[1]?.trim(), equipo: p[2]?.trim(), nombre: p[3]?.trim() }; })
+      .map(l => { const p = l.split(';'); return { orden: parseInt(p[0]?.trim()) || 0, mejora: p[1]?.trim() || '', dorsal: p[2]?.trim(), equipo: p[3]?.trim(), nombre: p[4]?.trim() }; })
       .filter(p => p.dorsal && p.equipo && p.nombre)
       .sort((a, b) => a.orden - b.orden);
     if (participantes.length) buildParticipanteSelects();
@@ -587,15 +646,21 @@ async function loadParticipantes() {
 }
 
 function buildVirtualParticipantes() {
-  participantes = Array.from({ length: 48 }, (_, i) => {
-    const n = String(i + 1).padStart(2, '0');
-    return { orden: i + 1, dorsal: `D${n}`, equipo: '-', nombre: `Atleta D${n}` };
-  });
+  participantes = [{ orden: 1, dorsal: 'D01', equipo: '-', nombre: 'Atleta', mejora: '' }];
   buildParticipanteSelects();
 }
 
 function buildParticipanteSelects() {
-  // Solo Dorsal se convierte en select; Equipo y Nombre se rellenan automáticamente
+  // Calcular lista activa según modo
+  if (partMode === 'mejora') {
+    listaActiva = participantes
+      .filter(p => p.mejora && p.mejora.trim())
+      .sort((a, b) => parseFloat(a.mejora) - parseFloat(b.mejora));
+  } else {
+    listaActiva = [...participantes].sort((a, b) => a.orden - b.orden);
+  }
+  if (!listaActiva.length) listaActiva = [...participantes].sort((a, b) => a.orden - b.orden);
+
   const old = document.getElementById('fldDorsal');
   if (old.tagName !== 'SELECT') {
     const sel = document.createElement('select');
@@ -605,18 +670,18 @@ function buildParticipanteSelects() {
   const selD = document.getElementById('fldDorsal');
   selD.style.appearance = 'none';
   selD.style.webkitAppearance = 'none';
-  selD.innerHTML = participantes.map(p =>
+  selD.innerHTML = listaActiva.map(p =>
     `<option value="${p.dorsal}">${p.dorsal}</option>`
   ).join('');
   document.getElementById('btnNextDorsal').disabled = false;
 
   function expandir() {
-    participantes.forEach((p, i) => {
+    listaActiva.forEach((p, i) => {
       selD.options[i].text = `${p.dorsal} · ${p.equipo} · ${p.nombre}`;
     });
   }
   function colapsar() {
-    participantes.forEach((p, i) => { selD.options[i].text = p.dorsal; });
+    listaActiva.forEach((p, i) => { selD.options[i].text = p.dorsal; });
   }
 
   selD.addEventListener('mousedown',  expandir);
@@ -637,18 +702,18 @@ function onDorsalChange() {
 }
 
 function siguienteDorsal() {
-  if (!participantes.length) return;
+  if (!listaActiva.length) return;
   const selD = document.getElementById('fldDorsal');
   const selI = document.getElementById('fldIntento');
-  const idx  = participantes.findIndex(p => p.dorsal === selD.value);
+  const idx  = listaActiva.findIndex(p => p.dorsal === selD.value);
   let next   = idx + 1;
-  if (next >= participantes.length) {
+  if (next >= listaActiva.length) {
     next = 0;
     let intento = parseInt(selI.value) + 1;
     if (intento > 6) intento = 1;
     selI.value = String(intento);
   }
-  selD.value = participantes[next].dorsal;
+  selD.value = listaActiva[next].dorsal;
   onDorsalChange();
   btnGrabar.disabled = !dirHandle || !mediaStream;
   syncUI();
@@ -1286,7 +1351,7 @@ function zoomHReset() {
 
 function setRecordingMode(on) {
   isRecording = on;
-  ['btnNextDorsal','btnGuide','btnReloadPart'].forEach(id => {
+  ['btnNextDorsal','btnGuide'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = on || !dirHandle;
   });
@@ -1495,6 +1560,97 @@ function setStatus(msg, isRec = false) {
   el.className = 'status' + (isRec ? ' rec' : '');
 }
 window.addEventListener('resize', () => { if (samples.length) drawChart(); });
+
+// ═══════════════════════════════════════════════════════════
+//  EDITOR DE PARTICIPANTES
+// ═══════════════════════════════════════════════════════════
+let partSortCol = 'orden';
+let partMode    = 'orden';
+let listaActiva = [];
+let partSortAsc = true;
+
+function abrirParticipantes() {
+  partSortCol = 'orden'; partSortAsc = true;
+  renderPartTable(participantes.map(p => ({ ...p })));
+  document.getElementById('partOverlay').classList.add('open');
+}
+
+function cerrarParticipantes() {
+  document.getElementById('partOverlay').classList.remove('open');
+}
+
+function sortPart(col) {
+  if (partSortCol === col) partSortAsc = !partSortAsc;
+  else { partSortCol = col; partSortAsc = true; }
+  renderPartTable(getPartData());
+}
+
+function escH(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function getPartData() {
+  return Array.from(document.querySelectorAll('#partTbody tr')).map(tr => {
+    const inp = tr.querySelectorAll('input');
+    return { orden: inp[0].value, mejora: inp[1].value, dorsal: inp[2].value, equipo: inp[3].value, nombre: inp[4].value };
+  });
+}
+
+function renderPartTable(data) {
+  const sorted = [...data].sort((a, b) => {
+    let va = a[partSortCol] ?? '', vb = b[partSortCol] ?? '';
+    if (partSortCol === 'orden') { va = +va || 0; vb = +vb || 0; }
+    else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+    return partSortAsc ? (va > vb ? 1 : va < vb ? -1 : 0) : (va < vb ? 1 : va > vb ? -1 : 0);
+  });
+  ['orden','mejora','dorsal','equipo','nombre'].forEach(c => {
+    const el = document.getElementById('partSort-' + c);
+    if (el) el.textContent = c === partSortCol ? (partSortAsc ? '▲' : '▼') : '';
+  });
+  document.getElementById('partTbody').innerHTML = sorted.map(p => `
+    <tr>
+      <td><input value="${escH(p.orden)}" style="width:3rem;text-align:center"></td>
+      <td><input value="${escH(p.mejora)}" style="width:5rem"></td>
+      <td><input value="${escH(p.dorsal)}" style="width:4rem"></td>
+      <td><input value="${escH(p.equipo)}" style="width:5rem"></td>
+      <td><input value="${escH(p.nombre)}" style="flex:1;width:100%;min-width:8rem"></td>
+      <td><button class="part-del" onclick="this.closest('tr').remove()">✕</button></td>
+    </tr>`).join('');
+}
+
+function addPartRow() {
+  const tbody = document.getElementById('partTbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input value="${tbody.children.length + 1}" style="width:3rem;text-align:center"></td>
+    <td><input value="" style="width:5rem"></td>
+    <td><input value=""></td>
+    <td><input value=""></td>
+    <td><input value="" style="width:100%;min-width:8rem"></td>
+    <td><button class="part-del" onclick="this.closest('tr').remove()">✕</button></td>`;
+  tbody.appendChild(tr);
+  tr.querySelectorAll('input')[2].focus();
+}
+
+async function saveParticipantes() {
+  participantes = getPartData()
+    .filter(r => r.dorsal.trim())
+    .map(r => ({ mejora: r.mejora.trim(), orden: parseInt(r.orden) || 0, dorsal: r.dorsal.trim(), equipo: r.equipo.trim(), nombre: r.nombre.trim() }))
+    .sort((a, b) => a.orden - b.orden);
+  if (dirHandle) {
+    try {
+      const header = PARTICIPANTES_DEFAULT.split('\n').filter(l => l.startsWith('#')).join('\n');
+      const body = participantes.map(p => [p.orden, p.mejora, p.dorsal, p.equipo, p.nombre].join(';')).join('\n');
+      const fh = await dirHandle.getFileHandle('participantes.txt', { create: true });
+      const w = await fh.createWritable();
+      await w.write(header + '\n' + body + '\n');
+      await w.close();
+      setStatus('Participantes guardados.');
+    } catch(e) { setStatus('Error guardando: ' + e.message); }
+  }
+  buildParticipanteSelects();
+  cerrarParticipantes();
+}
 </script>
 <script>
 if ('serviceWorker' in navigator) {
