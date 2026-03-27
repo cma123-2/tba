@@ -108,6 +108,12 @@
     .btn-neutral { background: #495057; color: #fff; }
     .btn-warn    { background: #e07b00; color: #fff; }
 
+    .btn-missing-dir {
+      background: #dc3545 !important;
+      color: #fff !important;
+    }
+    .btn-missing-dir:disabled { opacity: .8; }
+
     /* ── Fila nav frames ────────────────────────────────── */
     #frameNav {
       display: flex; gap: 6px; justify-content: center;
@@ -270,10 +276,9 @@
     #partTable { width: 100%; border-collapse: collapse; font-size: .78rem; }
     #partTable th {
       background: #2a2a4a; color: #9ab; padding: 5px 6px;
-      text-align: left; cursor: pointer; user-select: none;
+      text-align: left; user-select: none;
       border-bottom: 2px solid #3a3a6a; white-space: nowrap;
     }
-    #partTable th:hover { color: #4a9eff; }
     #partTable th .sarr { margin-left: 3px; color: #4a9eff; font-size: .65rem; }
     #partTable td { padding: 3px 4px; border-bottom: 1px solid #2a2a4a; vertical-align: middle; }
     #partTable td input {
@@ -368,10 +373,10 @@
   <div class="btn-row">
     <select id="camSelect" onchange="cambiarCamara()" style="display:none"></select>
     <button class="btn-neutral" id="btnCamSelect" onclick="mostrarCamaras()" title="Cambiar cámara"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
-    <button class="btn-neutral" id="btnSelDir"     onclick="seleccionarDir()"      title="Seleccionar directorio" disabled>📁</button>
     <button class="btn-neutral" id="btnFullscreen" onclick="toggleFullscreen()"    title="Pantalla completa">⛶</button>
-    <button class="btn-neutral" id="btnCargar"     onclick="cargarDesdeDir()"      title="Cargar vídeo" disabled>🎞</button>
     <button class="btn-neutral" id="btnGuide"      onclick="toggleGuide()"         title="Línea guía central" disabled>⊕</button>
+    <button class="btn-neutral" id="btnSelDir"     onclick="seleccionarDir()"      title="Seleccionar directorio" disabled>📁</button>
+    <button class="btn-neutral" id="btnCargar"     onclick="cargarDesdeDir()"      title="Cargar vídeo" disabled>🎞</button>
     <button class="btn-neutral" id="btnParticipantes" onclick="abrirParticipantes()" title="Editar participantes" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
     <button class="btn-neutral" id="btnHelp"       onclick="toggleHelp()"          title="Ayuda">?</button>
   </div>
@@ -462,24 +467,28 @@
       <div class="help-desc"><b>Cambiar cámara</b> — Cicla entre las cámaras disponibles.</div>
     </div>
     <div class="help-item">
-      <div class="help-icon">📁</div>
-      <div class="help-desc"><b>Directorio</b> — Selecciona la carpeta donde se guardarán las grabaciones.</div>
-    </div>
-    <div class="help-item">
       <div class="help-icon">⛶</div>
       <div class="help-desc"><b>Pantalla completa</b> — Activa o desactiva el modo pantalla completa.</div>
     </div>
     <div class="help-item">
-      <div class="help-icon">↺</div>
-      <div class="help-desc"><b>Recargar participantes</b> — Recarga el fichero <i>participantes.txt</i> del directorio.</div>
+      <div class="help-icon">⊕</div>
+      <div class="help-desc"><b>Línea guía</b> — Muestra u oculta una línea vertical central sobre el vídeo.</div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon">📁</div>
+      <div class="help-desc"><b>Directorio</b> — Selecciona la carpeta donde se guardarán las grabaciones.</div>
     </div>
     <div class="help-item">
       <div class="help-icon">🎞</div>
       <div class="help-desc"><b>Cargar vídeo</b> — Abre un vídeo grabado previamente del directorio para analizarlo.</div>
     </div>
     <div class="help-item">
-      <div class="help-icon">⊕</div>
-      <div class="help-desc"><b>Línea guía</b> — Muestra u oculta una línea vertical central sobre el vídeo.</div>
+      <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+      <div class="help-desc"><b>Editar participantes</b> — Abre el editor para añadir, borrar o modificar participantes.</div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon">?</div>
+      <div class="help-desc"><b>Ayuda</b> — Abre o cierra esta ventana de ayuda.</div>
     </div>
 
     <p style="font-size:.75rem;color:#666;margin-top:10px;line-height:1.5;">
@@ -497,17 +506,17 @@
   <div id="partBox">
     <h3>Participantes</h3>
     <div style="display:flex;gap:6px;justify-content:center;">
-      <button id="btnModeOrden"  onclick="setPartMode('orden')"  class="btn-primary" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Por Orden</button>
-      <button id="btnModeMejora" onclick="setPartMode('mejora')" class="btn-neutral" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Por Mejora</button>
+      <button id="btnModeOrden"  onclick="setPartMode('orden')"  class="btn-primary" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Orden Inicio</button>
+      <button id="btnModeMejora" onclick="setPartMode('mejora')" class="btn-neutral" style="font-size:.78rem;padding:4px 12px;border-radius:7px;border:none;cursor:pointer;">Orden Mejora</button>
     </div>
     <div id="partTableWrap">
       <table id="partTable">
         <thead><tr>
-          <th onclick="sortPart('orden')">Orden<span class="sarr" id="partSort-orden"></span></th>
-          <th onclick="sortPart('mejora')">Mejora<span class="sarr" id="partSort-mejora"></span></th>
-          <th onclick="sortPart('dorsal')">Dorsal<span class="sarr" id="partSort-dorsal"></span></th>
-          <th onclick="sortPart('equipo')">Equipo<span class="sarr" id="partSort-equipo"></span></th>
-          <th onclick="sortPart('nombre')">Nombre<span class="sarr" id="partSort-nombre"></span></th>
+          <th>Orden<span class="sarr" id="partSort-orden"></span></th>
+          <th>Mejora<span class="sarr" id="partSort-mejora"></span></th>
+          <th>Dorsal</th>
+          <th>Equipo</th>
+          <th>Nombre</th>
           <th></th>
         </tr></thead>
         <tbody id="partTbody"></tbody>
@@ -655,12 +664,13 @@ function buildParticipanteSelects() {
   if (partMode === 'mejora') {
     listaActiva = participantes
       .filter(p => p.mejora && p.mejora.trim())
-      .sort((a, b) => parseFloat(a.mejora) - parseFloat(b.mejora));
+      .sort((a, b) => parseMejoraValue(a.mejora) - parseMejoraValue(b.mejora));
   } else {
-    listaActiva = [...participantes].sort((a, b) => a.orden - b.orden);
+    listaActiva = [...participantes].sort((a, b) => (a.orden || 0) - (b.orden || 0));
   }
-  if (!listaActiva.length) listaActiva = [...participantes].sort((a, b) => a.orden - b.orden);
+  if (!listaActiva.length) listaActiva = [...participantes].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
+  const oldValue = document.getElementById('fldDorsal')?.value || '';
   const old = document.getElementById('fldDorsal');
   if (old.tagName !== 'SELECT') {
     const sel = document.createElement('select');
@@ -673,7 +683,8 @@ function buildParticipanteSelects() {
   selD.innerHTML = listaActiva.map(p =>
     `<option value="${p.dorsal}">${p.dorsal}</option>`
   ).join('');
-  document.getElementById('btnNextDorsal').disabled = false;
+  if (oldValue && listaActiva.some(p => p.dorsal === oldValue)) selD.value = oldValue;
+  document.getElementById('btnNextDorsal').disabled = listaActiva.length <= 1;
 
   function expandir() {
     listaActiva.forEach((p, i) => {
@@ -864,7 +875,10 @@ function cerrarCamaras() {
 
 
 // Activar cámara al cargar la página
-window.addEventListener('load', () => activarCamara());
+window.addEventListener('load', () => {
+  syncUI();
+  activarCamara();
+});
 
 // ═══════════════════════════════════════════════════════════
 //  GRABACIÓN
@@ -1325,6 +1339,8 @@ function syncUI() {
     document.getElementById('btnZoomH').disabled     = false;
     document.getElementById('btnZoomReset').disabled = false;
   }
+  // Botón directorio: rojo si no hay carpeta seleccionada
+  document.getElementById('btnSelDir')?.classList.toggle('btn-missing-dir', !dirHandle);
   // Chart: interactivo solo en navegación
   document.getElementById('chartWrap').style.pointerEvents = enNavegacion ? 'auto' : 'none';
 }
@@ -1505,6 +1521,10 @@ chartCanvas.addEventListener('touchmove', e => {
   if (chartBlocked()) return;
   goFrame(chartClientXtoFrame(e.touches[0].clientX));
 }, { passive: true });
+chartCanvas.addEventListener('dblclick', async () => {
+  if (chartBlocked() || keyFrame <= 0) return;
+  await goFrame(keyFrame);
+});
 
 // ═══════════════════════════════════════════════════════════
 //  UTILIDADES
@@ -1569,20 +1589,37 @@ let partMode    = 'orden';
 let listaActiva = [];
 let partSortAsc = true;
 
+function parseMejoraValue(value) {
+  const txt = String(value ?? '').trim().replace(',', '.');
+  if (!txt) return Number.POSITIVE_INFINITY;
+  const num = parseFloat(txt);
+  return Number.isFinite(num) ? num : Number.POSITIVE_INFINITY;
+}
+
+function setPartMode(mode) {
+  partMode = mode === 'mejora' ? 'mejora' : 'orden';
+  partSortCol = partMode;
+  partSortAsc = true;
+  document.getElementById('btnModeOrden')?.classList.toggle('btn-primary', partMode === 'orden');
+  document.getElementById('btnModeOrden')?.classList.toggle('btn-neutral', partMode !== 'orden');
+  document.getElementById('btnModeMejora')?.classList.toggle('btn-primary', partMode === 'mejora');
+  document.getElementById('btnModeMejora')?.classList.toggle('btn-neutral', partMode !== 'mejora');
+  if (document.getElementById('partOverlay')?.classList.contains('open')) {
+    renderPartTable(getPartData());
+  }
+  buildParticipanteSelects();
+}
+
 function abrirParticipantes() {
-  partSortCol = 'orden'; partSortAsc = true;
+  partSortCol = partMode === 'mejora' ? 'mejora' : 'orden';
+  partSortAsc = true;
   renderPartTable(participantes.map(p => ({ ...p })));
+  setPartMode(partMode);
   document.getElementById('partOverlay').classList.add('open');
 }
 
 function cerrarParticipantes() {
   document.getElementById('partOverlay').classList.remove('open');
-}
-
-function sortPart(col) {
-  if (partSortCol === col) partSortAsc = !partSortAsc;
-  else { partSortCol = col; partSortAsc = true; }
-  renderPartTable(getPartData());
 }
 
 function escH(s) {
@@ -1599,11 +1636,22 @@ function getPartData() {
 function renderPartTable(data) {
   const sorted = [...data].sort((a, b) => {
     let va = a[partSortCol] ?? '', vb = b[partSortCol] ?? '';
-    if (partSortCol === 'orden') { va = +va || 0; vb = +vb || 0; }
-    else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+    if (partSortCol === 'orden') {
+      va = +va || 0; vb = +vb || 0;
+      return partSortAsc ? (va - vb) : (vb - va);
+    }
+    if (partSortCol === 'mejora') {
+      va = parseMejoraValue(va); vb = parseMejoraValue(vb);
+      if (!Number.isFinite(va) && !Number.isFinite(vb)) return 0;
+      if (!Number.isFinite(va)) return 1;
+      if (!Number.isFinite(vb)) return -1;
+      return partSortAsc ? (va - vb) : (vb - va);
+    }
+    va = String(va).toLowerCase();
+    vb = String(vb).toLowerCase();
     return partSortAsc ? (va > vb ? 1 : va < vb ? -1 : 0) : (va < vb ? 1 : va > vb ? -1 : 0);
   });
-  ['orden','mejora','dorsal','equipo','nombre'].forEach(c => {
+  ['orden','mejora'].forEach(c => {
     const el = document.getElementById('partSort-' + c);
     if (el) el.textContent = c === partSortCol ? (partSortAsc ? '▲' : '▼') : '';
   });
@@ -1636,7 +1684,7 @@ async function saveParticipantes() {
   participantes = getPartData()
     .filter(r => r.dorsal.trim())
     .map(r => ({ mejora: r.mejora.trim(), orden: parseInt(r.orden) || 0, dorsal: r.dorsal.trim(), equipo: r.equipo.trim(), nombre: r.nombre.trim() }))
-    .sort((a, b) => a.orden - b.orden);
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
   if (dirHandle) {
     try {
       const header = PARTICIPANTES_DEFAULT.split('\n').filter(l => l.startsWith('#')).join('\n');
