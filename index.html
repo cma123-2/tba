@@ -8,6 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Batida">
+  <meta name="version" content="1.2">
+  <meta name="last-modified" content="2026-04-01">  
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.png" type="image/png">
   <link rel="apple-touch-icon" href="logo.png">
@@ -387,14 +389,14 @@
             <button class="btn-danger"  id="btnGrabar"     onclick="toggleGrabacion()"  disabled title="Grabar / Detener">●</button>
             <button class="btn-primary" id="btnNextDorsal" onclick="siguienteDorsal()" disabled title="Siguiente dorsal">→</button>
           </div>
-          <div class="copyright">© 2026 Carlos Miguel</div>
+          <div class="copyright">© 2026 CMA</div>
         </div>
       </div>
     </div>
     <!-- Modal selector de ficheros del directorio -->
     <div id="filePickerModal" style="display:none">
       <input id="filePickerFilter" type="search" placeholder="Filtrar…" oninput="filtrarFicheros(this.value)"
-        style="margin:6px;padding:5px 8px;border-radius:6px;border:1px solid #2a2a4a;background:#1e1e30;color:#dde;font-size:.82rem;outline:none;">
+        style="margin:6px;padding:5px 8px;border-radius:6px;border:1px solid #2a2a4a;background:#e4ee60;color:#000;font-size:.82rem;outline:none;">
       <div id="filePickerList"></div>
       <button class="btn-neutral" onclick="closeFilePicker()" style="margin:4px;align-self:flex-end">✕ Cancelar</button>
     </div>
@@ -437,7 +439,7 @@
 
 <!-- Popup selector de cámara -->
 <div id="camOverlay" onclick="if(event.target===this)cerrarCamaras()" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);justify-content:center;align-items:center;">
-  <div style="background:#1e1e30;border-radius:12px;padding:14px;min-width:240px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:10px;">
+  <div style="background:#1e1e30;border-radius:12px;padding:14px;min-width:240px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:10px;overflow-y: auto;max-height:90vh;position:fixed;top:4%">
     <div style="font-size:.8rem;color:#aab;text-align:center;font-weight:bold;">Configuración de cámara</div>
 
     <div style="font-size:.72rem;color:#888;">Cámara</div>
@@ -527,7 +529,7 @@
     <div class="help-section">Herramientas</div>
     <div class="help-item">
       <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-      <div class="help-desc"><b>Cambiar cámara</b> — Cicla entre las cámaras disponibles.</div>
+      <div class="help-desc"><b>Cambiar cámara</b> — Elige entre las cámaras disponibles.</div>
     </div>
     <div class="help-item">
       <div class="help-icon">⛶</div>
@@ -636,7 +638,7 @@ let samples        = [];       // [{t, change, white}] ordenados por tiempo
 let frameCount     = 0;        // frames totales a videoFPS nativo
 let currentFrame   = 0;        // frame actual (a videoFPS)
 let keyFrame       = 0;        // frame nativo del punto clave
-let videoFPS       = 30;
+let videoFPS       = 60;
 let whiteThreshold = 230;
 let analyzeReady   = false;
 let scanning       = false;
@@ -975,7 +977,7 @@ async function activarCamara(deviceId = null) {
         console.warn('No se pudieron obtener los settings reales:', e);
       }
     }
-    console.log('Cámara activada con configuración:', camRealSettings);
+    setStatus('Cámara activada con configuración:' + camRealSettings);
     
     // Aplicar brillo y contraste automáticamente
     await aplicarBrilloContraste();
@@ -1041,12 +1043,9 @@ async function mostrarCamaras() {
     list.appendChild(btn);
   });
   // Marcar selección actual de resolución y fps (valores reales conseguidos)
-  document.querySelectorAll('.cam-opt[data-type="res"]').forEach(b => {
-    b.classList.toggle('selected', +b.dataset.w === camRealSettings.width && +b.dataset.h === camRealSettings.height);
-  });
-  document.querySelectorAll('.cam-opt[data-type="fps"]').forEach(b => {
-    b.classList.toggle('selected', +b.dataset.fps === camRealSettings.fps);
-  });
+  toggleCamOptSelected('res', b => +b.dataset.w === camRealSettings.width && +b.dataset.h === camRealSettings.height);
+  toggleCamOptSelected('fps', b => +b.dataset.fps === camRealSettings.fps);
+
   // Actualizar sliders
   document.getElementById('sliderBrillo').value = camConfig.brightness;
   document.getElementById('valBrillo').textContent = camConfig.brightness;
@@ -1073,65 +1072,40 @@ function actualizarCapacidadesCamara() {
     const capabilities = track.getCapabilities?.();
     if (!capabilities) {
       // Si no hay getCapabilities(), asumir que todas las opciones están soportadas
-      document.querySelectorAll('.cam-opt').forEach(b => {
-        b.disabled = false;
-        b.style.opacity = '1';
-        b.style.cursor = 'pointer';
-      });
+      document.querySelectorAll('.cam-opt').forEach(b => setCamOptState(b, true));
       return;
     }
     
     // Verificar resoluciones soportadas
-    const resButtons = document.querySelectorAll('.cam-opt[data-type="res"]');
-    resButtons.forEach(btn => {
+    document.querySelectorAll('.cam-opt[data-type="res"]').forEach(btn => {
       const w = +btn.dataset.w;
       const h = +btn.dataset.h;
       let supported = true;
       
-      if (capabilities.width) {
-        const widthRange = capabilities.width;
-        if (typeof widthRange === 'object' && 'min' in widthRange && 'max' in widthRange) {
-          supported = w >= widthRange.min && w <= widthRange.max;
-        }
+      if (capabilities.width && typeof capabilities.width === 'object' && 'min' in capabilities.width && 'max' in capabilities.width) {
+        supported = supported && w >= capabilities.width.min && w <= capabilities.width.max;
       }
       
-      if (supported && capabilities.height) {
-        const heightRange = capabilities.height;
-        if (typeof heightRange === 'object' && 'min' in heightRange && 'max' in heightRange) {
-          supported = h >= heightRange.min && h <= heightRange.max;
-        }
+      if (supported && capabilities.height && typeof capabilities.height === 'object' && 'min' in capabilities.height && 'max' in capabilities.height) {
+        supported = supported && h >= capabilities.height.min && h <= capabilities.height.max;
       }
-      
-      btn.disabled = !supported;
-      btn.style.opacity = supported ? '1' : '0.35';
-      btn.style.cursor = supported ? 'pointer' : 'not-allowed';
+      setCamOptState(btn, supported);
     });
     
     // Verificar FPS soportados
-    const fpsButtons = document.querySelectorAll('.cam-opt[data-type="fps"]');
-    fpsButtons.forEach(btn => {
+    document.querySelectorAll('.cam-opt[data-type="fps"]').forEach(btn => {
       const fps = +btn.dataset.fps;
       let supported = true;
       
-      if (capabilities.frameRate) {
-        const fpsRange = capabilities.frameRate;
-        if (typeof fpsRange === 'object' && 'min' in fpsRange && 'max' in fpsRange) {
-          supported = fps >= fpsRange.min && fps <= fpsRange.max;
-        }
+      if (capabilities.frameRate && typeof capabilities.frameRate === 'object' && 'min' in capabilities.frameRate && 'max' in capabilities.frameRate) {
+        supported = fps >= capabilities.frameRate.min && fps <= capabilities.frameRate.max;
       }
-      
-      btn.disabled = !supported;
-      btn.style.opacity = supported ? '1' : '0.35';
-      btn.style.cursor = supported ? 'pointer' : 'not-allowed';
+      setCamOptState(btn, supported);
     });
   } catch(e) {
     console.warn('No se pudieron obtener las capacidades de la cámara:', e);
     // Asumir que todas están soportadas si hay error
-    document.querySelectorAll('.cam-opt').forEach(b => {
-      b.disabled = false;
-      b.style.opacity = '1';
-      b.style.cursor = 'pointer';
-    });
+    document.querySelectorAll('.cam-opt').forEach(b => setCamOptState(b, true));
   }
 }
 
@@ -1162,7 +1136,20 @@ function cerrarCamaras() {
   document.getElementById('camOverlay').style.display = 'none';
 }
 
+function setCamOptState(btn, supported) {
+  btn.disabled = !supported;
+  btn.style.opacity = supported ? '1' : '0.35';
+  btn.style.cursor = supported ? 'pointer' : 'not-allowed';
+  if (!supported && btn.classList.contains('selected')) {
+    btn.classList.remove('selected');
+  }
+}
 
+function toggleCamOptSelected(type, predicate) {
+  document.querySelectorAll(`.cam-opt[data-type="${type}"]`).forEach(btn => {
+    btn.classList.toggle('selected', predicate(btn));
+  });
+}
 
 // Activar cámara al cargar la página
 window.addEventListener('load', () => {
@@ -1463,7 +1450,7 @@ function prepararAnalisis(url, videoName = null, liveSamples = null) {
   analyzeVideo.src = url;
   analyzeVideo.load();
   analyzeVideo.onloadedmetadata = async () => {
-    videoFPS = 30;
+    videoFPS = 60;
 
     // WebM de MediaRecorder no incluye duración en el header → duration = Infinity.
     // Solución: seek al final forzado para que el browser calcule la duración real.
