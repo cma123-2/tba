@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cronometraje de Carrera</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #21262d;
+      --border:   #30363d;
+      --accent:   #f85149;
+      --green:    #3fb950;
+      --blue:     #58a6ff;
+      --yellow:   #d29922;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    .app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+    header {
+      text-align: center;
+      padding: 16px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 1.5em; font-weight: 600; }
+    header p  { color: var(--muted); margin-top: 4px; font-size: 0.85em; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.72em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .row { display: flex; gap: 16px; }
+    .row > * { flex: 1; min-width: 0; }
+    @media (max-width: 620px) { .row { flex-direction: column; } }
+
+    /* ─── Timer ─── */
+    .timer-elapsed {
+      font-size: 3.2em;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-align: center;
+      padding: 6px 0 2px;
+      line-height: 1;
+      transition: color .3s;
+    }
+    .timer-elapsed.running { color: var(--green); }
+    .timer-clock { text-align: center; color: var(--muted); font-size: 0.88em; margin-bottom: 4px; }
+
+    /* ─── Buttons ─── */
+    .btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 600;
+      font-family: inherit;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.82; }
+    .btn:active:not(:disabled) { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-green  { background: var(--green);  color: #000; }
+    .btn-red    { background: var(--accent); color: #fff; }
+    .btn-blue   { background: var(--blue);   color: #000; }
+    .btn-gray   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-sm     { padding: 4px 10px; font-size: 0.78em; }
+
+    /* ─── Inputs ─── */
+    input[type="time"], input[type="number"], input[type="text"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 0.88em;
+      font-family: inherit;
+    }
+    input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(88,166,255,.15); }
+    input[type="time"] { width: 114px; }
+    label { font-size: 0.82em; color: var(--muted); display: block; margin-bottom: 4px; }
+
+    /* ─── Status dot ─── */
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .dot.green  { background: var(--green);  animation: blink 1.2s ease-in-out infinite; }
+    .dot.red    { background: var(--accent); animation: blink .7s  ease-in-out infinite; }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+
+    .status-row { display: flex; align-items: center; gap: 7px; font-size: 0.84em; color: var(--muted); }
+
+    /* ─── Transcript ─── */
+    .transcript {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      min-height: 54px;
+      margin: 10px 0 8px;
+      font-size: 0.88em;
+      line-height: 1.5;
+    }
+    .transcript .interim  { color: var(--yellow); }
+    .transcript .final    { color: var(--green); font-weight: 600; }
+    .transcript .placeholder { color: var(--muted); font-style: italic; }
+    .transcript .warn     { color: var(--accent); font-size: .85em; }
+
+    /* ─── Table ─── */
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .table-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.72em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 8px 12px;
+      text-align: left;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tbody tr { border-top: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody tr.dup { background: rgba(248,81,73,.06); }
+    tbody td { padding: 8px 12px; font-size: 0.88em; vertical-align: middle; }
+    .col-pos    { color: var(--muted); font-size: .82em; }
+    .col-dorsal { font-family: monospace; font-weight: 700; font-size: 1em; }
+    .col-time   { font-family: monospace; color: var(--blue); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: 0.72em;
+      font-weight: 600;
+    }
+    .badge-ni     { background: rgba(210,153,34,.2);  color: var(--yellow); border: 1px solid rgba(210,153,34,.35); }
+    .badge-auto   { background: rgba(88,166,255,.12); color: var(--blue);   border: 1px solid rgba(88,166,255,.25); font-size:.65em; }
+    .badge-manual { background: rgba(63,185,80,.12);  color: var(--green);  border: 1px solid rgba(63,185,80,.25);  font-size:.65em; }
+    .badge-dup    { background: rgba(248,81,73,.15);  color: var(--accent); border: 1px solid rgba(248,81,73,.3);   font-size:.65em; }
+    .badge-int    { background: rgba(210,153,34,.12); color: var(--yellow); border: 1px solid rgba(210,153,34,.3);  font-size:.65em; }
+    tr.interim-row td { opacity: .5; font-style: italic; }
+
+    .table-stats { font-size: .78em; color: var(--muted); margin-top: 8px; }
+
+    /* ─── Add form ─── */
+    .add-form {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .add-form.visible { display: block; }
+    .form-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; }
+
+    /* ─── Edit Modal ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      width: 340px;
+      max-width: 92vw;
+    }
+    .modal h3 { margin-bottom: 16px; font-size: 1em; }
+    .modal .form-group { margin-bottom: 12px; }
+    .modal .form-group input { width: 100%; }
+    .modal-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+    /* ─── Toast ─── */
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: .84em;
+      font-weight: 600;
+      z-index: 200;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: transform .25s, opacity .25s;
+      max-width: 320px;
+    }
+    .toast.show      { transform: translateY(0); opacity: 1; }
+    .toast.ok        { border-left: 3px solid var(--green); }
+    .toast.err       { border-left: 3px solid var(--accent); }
+    .toast.warn-t    { border-left: 3px solid var(--yellow); }
+
+    /* ─── Dir info ─── */
+    .dir-info { font-size: .78em; color: var(--muted); margin-top: 8px; word-break: break-all; min-height: 18px; }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-family: monospace;
+      font-size: .85em;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>⏱ Cronometraje de Carrera</h1>
+    <p>Registro de tiempos por voz · Chrome · Sin API externa</p>
+  </header>
+
+  <!-- ── Race control ── -->
+  <div class="card">
+    <div class="card-title">Control de Carrera</div>
+    <div class="row" style="align-items:center; gap:24px;">
+      <div>
+        <div class="timer-clock" id="clockNow">--:--:--</div>
+        <div class="timer-elapsed" id="elapsedDisplay">00:00.00</div>
+      </div>
+      <div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Hora de inicio (HH:MM:SS)</label>
+          <div style="display:flex; gap:6px;">
+            <input type="time" id="startTimeInput" step="1">
+            <button class="btn btn-gray" onclick="setStartNow()">Ahora</button>
+          </div>
+        </div>
+        <button class="btn btn-green" id="btnRace" onclick="toggleRace()">▶ Iniciar Carrera</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- ── Microphone ── -->
+    <div class="card" style="flex:2;">
+      <div class="card-title">Reconocimiento de Voz</div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-green" id="btnMic" onclick="toggleListening()">🎤 Activar micrófono</button>
+        <span class="status-row">
+          <span class="dot" id="micDot"></span>
+          <span id="micStatusText">Inactivo</span>
+        </span>
+      </div>
+      <div class="transcript" id="transcriptBox">
+        <span class="placeholder">El texto reconocido aparecerá aquí…</span>
+      </div>
+      <div style="font-size:.78em; color:var(--muted); line-height:1.6;">
+        Di un <strong>número de dorsal</strong> (1–10000) o <strong>«más N»</strong> para N no identificados.<br>
+        Atajos: <kbd>Espacio</kbd> activa/desactiva mic · <kbd>Enter</kbd> inicia/detiene carrera · <kbd>Esc</kbd> cierra modal
+      </div>
+    </div>
+
+    <!-- ── Audio & Directory ── -->
+    <div class="card" style="flex:1;">
+      <div class="card-title">Grabación y Almacenamiento</div>
+      <button class="btn btn-gray" onclick="selectDirectory()" style="width:100%; justify-content:center; margin-bottom:6px;">
+        📁 Seleccionar directorio de salida
+      </button>
+      <div class="dir-info" id="dirInfo">Sin directorio — los datos se exportarán manualmente</div>
+
+      <div class="status-row" style="margin-top:14px;">
+        <span class="dot" id="recDot"></span>
+        <span id="recStatusText">Sin grabar</span>
+      </div>
+      <div style="font-size:.78em; color:var(--muted); margin-top:6px;" id="savedFilesInfo">
+        Audios guardados: 0
+      </div>
+      <div style="font-size:.78em; color:var(--muted); margin-top:4px;" id="autoSaveInfo"></div>
+    </div>
+  </div>
+
+  <!-- ── Table ── -->
+  <div class="card">
+    <div class="table-toolbar">
+      <div class="card-title" style="margin:0;">Tabla de Tiempos</div>
+      <div class="table-actions">
+        <button class="btn btn-gray btn-sm" onclick="showAddForm()">+ Añadir</button>
+        <button class="btn btn-gray btn-sm" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-gray btn-sm" onclick="exportJSON()">⬇ JSON</button>
+        <button class="btn btn-red  btn-sm" onclick="clearAll()">🗑 Limpiar</button>
+      </div>
+    </div>
+
+    <div class="add-form" id="addForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Dorsal (vacío = N/I)</label>
+          <input type="number" id="addDorsal" min="1" max="10000" placeholder="1–10000" style="width:110px;">
+        </div>
+        <div class="form-group">
+          <label>Posición (vacío = al final)</label>
+          <input type="number" id="addPos" min="1" placeholder="auto" style="width:80px;">
+        </div>
+        <div class="form-group">
+          <label>Tiempo (MM:SS.cc o HH:MM:SS)</label>
+          <input type="text" id="addTime" placeholder="ej. 35:21.45" style="width:150px;">
+        </div>
+        <button class="btn btn-green" onclick="addManual()">Añadir</button>
+        <button class="btn btn-gray"  onclick="hideAddForm()">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:42px;">Pos</th>
+            <th style="width:80px;">Dorsal</th>
+            <th style="width:110px;">Tiempo</th>
+            <th>Info</th>
+            <th style="width:72px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr>
+            <td colspan="5" style="text-align:center; padding:28px; color:var(--muted);">
+              Sin datos — activa el micrófono y di dorsales
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-stats" id="tableStats">0 entradas</div>
+  </div>
+
+</div><!-- /.app -->
+
+<!-- ── Edit Modal ── -->
+<div class="modal-overlay" id="editModal" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <h3>Editar entrada</h3>
+    <input type="hidden" id="editId">
+    <div class="form-group">
+      <label>Dorsal (vacío = No Identificado)</label>
+      <input type="number" id="editDorsal" min="1" max="10000" placeholder="1–10000">
+    </div>
+    <div class="form-group">
+      <label>Tiempo transcurrido (MM:SS.cc)</label>
+      <input type="text" id="editTime" placeholder="35:21.45">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-gray" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="saveEdit()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let raceStart    = null;   // Date — gun-time absolute
+let raceRunning  = false;
+let _raf         = null;
+
+let entries  = [];         // { id, dorsal, timestamp, type }
+let nextId   = 1;
+
+let dirHandle    = null;   // FileSystemDirectoryHandle
+let savedAudio   = 0;
+
+let recStream    = null;   // MediaStream
+let recRecorder  = null;   // MediaRecorder
+let recChunks    = [];
+let recSaving    = false;  // prevents concurrent saves
+
+let recog           = null;   // SpeechRecognition
+let isListening     = false;
+let interimPending  = new Map(); // resultIndex → { ts, ids[] }
+
+// ════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════
+const pad = (n, d = 2) => String(Math.floor(Math.abs(n))).padStart(d, '0');
+
+// ── Spanish number-word → integer ────────────────────────────
+const _WV = {
+  cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,
+  diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,
+  dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,
+  veinte:20,veintiun:21,veintiuno:21,veintidos:22,veintitres:23,
+  veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,
+  treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,
+  cien:100,ciento:100,
+  doscientos:200,doscientas:200,trescientos:300,trescientas:300,
+  cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,
+  seiscientos:600,seiscientas:600,setecientos:700,setecientas:700,
+  ochocientos:800,ochocientas:800,novecientos:900,novecientas:900,
+  mil:1000
+};
+const _TENS_Y = new Set([30,40,50,60,70,80,90]);
+
+/**
+ * Greedy parse of tokens[start…] as one Spanish integer (also accepts inline digit tokens).
+ * Returns { value, end } or null.
+ * Phases: 0=start, 1=after-mil, 2=after-hundreds, 3=after-tens(30-90)
+ */
+function _trySpanish(tokens, start) {
+  let phase = 0, res = 0, cur = 0, pos = start, needUnit = false;
+  while (pos < tokens.length) {
+    const tok = tokens[pos];
+    if (tok === 'y') {
+      if (phase !== 3) break;
+      needUnit = true; pos++; continue;
+    }
+    const isDigit = /^\d{1,5}$/.test(tok);
+    const v = isDigit ? parseInt(tok) : _WV[tok];
+    if (v === undefined) break;
+
+    if (needUnit) {
+      if (v < 1 || v > 9) break;
+      cur += v; pos++; break;
+    }
+    if (v === 1000) {
+      if (phase > 1) break;
+      res += (cur === 0 ? 1 : cur) * 1000; cur = 0; phase = 1; pos++;
+    } else if (v >= 100) {
+      if (phase > 1) break;
+      cur += v; phase = 2; pos++;
+    } else if (_TENS_Y.has(v)) {
+      if (phase > 2) break;
+      cur += v; phase = 3; pos++;
+    } else {
+      // 1-9, 10-29, or a digit token
+      if (phase > 2) break;
+      // If 1-9 at top level and next token is "mil", don't break — let mil multiply it
+      if (v >= 1 && v <= 9 && phase === 0 && tokens[pos + 1] === 'mil') {
+        cur += v; pos++;
+      } else {
+        cur += v; pos++; break;
+      }
+    }
+  }
+  if (pos === start) return null;
+  const total = res + cur;
+  return total > 0 ? { value: total, end: pos } : null;
+}
+
+/**
+ * Extract all valid bib numbers (1–10000) from text.
+ * Handles: plain digits, Spanish thousands-separator ("1.118"), split digits ("1 118"),
+ * and Spanish word-numbers ("mil ciento dieciocho", "trescientos cuarenta y cinco").
+ */
+function extractNums(rawText) {
+  let t = rawText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Merge thousands-separated pairs: "1.118" → "1118", "1 118" → "1118"
+  t = t.replace(/\b(\d{1,2})[.,](\d{3})\b/g, '$1$2');
+  t = t.replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2');
+
+  const tokens = t.split(/[^a-z0-9]+/).filter(Boolean);
+  const results = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const tok = tokens[i];
+    if (/^\d{1,5}$/.test(tok)) {
+      const n = parseInt(tok);
+      if (n >= 1 && n <= 10000) results.push(n);
+      i++;
+    } else if (tok in _WV || tok === 'y') {
+      const parsed = _trySpanish(tokens, i);
+      if (parsed && parsed.value >= 1 && parsed.value <= 10000) {
+        results.push(parsed.value);
+        i = parsed.end;
+      } else {
+        i++;
+      }
+    } else {
+      i++;
+    }
+  }
+  return results;
+}
+
+function formatMs(ms) {
+  if (ms < 0) ms = 0;
+  const totalCs = Math.floor(ms / 10);
+  const cs   = totalCs % 100;
+  const totS = Math.floor(totalCs / 100);
+  const s    = totS % 60;
+  const m    = Math.floor(totS / 60) % 60;
+  const h    = Math.floor(totS / 3600);
+  return h > 0
+    ? `${pad(h)}:${pad(m)}:${pad(s)}.${pad(cs)}`
+    : `${pad(m)}:${pad(s)}.${pad(cs)}`;
+}
+
+function formatMsFilename(ms) {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000) % 60;
+  const m = Math.floor(ms / 60000) % 60;
+  const h = Math.floor(ms / 3600000);
+  return `${pad(h)}${pad(m)}${pad(s)}`;
+}
+
+function formatDateFilename(d) {
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+/** Parse "MM:SS", "MM:SS.cc", "HH:MM:SS", "HH:MM:SS.cc" → ms */
+function parseTimeInput(str) {
+  str = str.trim().replace(',', '.');
+  const rx = /^(?:(\d+):)?(\d+):(\d+)(?:\.(\d+))?$/;
+  const m  = str.match(rx);
+  if (!m) throw new Error('Formato inválido');
+  const h   = parseInt(m[1] || '0');
+  const min = parseInt(m[2]);
+  const sec = parseInt(m[3]);
+  const cs  = parseInt((m[4] || '0').padEnd(2, '0').slice(0, 2));
+  return ((h * 3600 + min * 60 + sec) * 100 + cs) * 10;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+let _toastTimer;
+function toast(msg, kind = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = `toast show ${kind}`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+
+// ════════════════════════════════════════════════════════
+// CLOCK & TIMER
+// ════════════════════════════════════════════════════════
+function updateClock() {
+  document.getElementById('clockNow').textContent =
+    new Date().toLocaleTimeString('es-ES');
+}
+
+function getElapsed() {
+  return raceStart ? Date.now() - raceStart.getTime() : 0;
+}
+
+function rafTimer() {
+  document.getElementById('elapsedDisplay').textContent = formatMs(getElapsed());
+  if (raceRunning) _raf = requestAnimationFrame(rafTimer);
+}
+
+function setStartNow() {
+  const n = new Date();
+  document.getElementById('startTimeInput').value =
+    `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}
+
+function applyStartTimeInput() {
+  const v = document.getElementById('startTimeInput').value;
+  if (!v) return false;
+  const [h, m, s] = v.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, s, 0);
+  raceStart = d;
+  return true;
+}
+
+function toggleRace() {
+  if (!raceRunning) {
+    if (!applyStartTimeInput()) {
+      raceStart = new Date();
+      setStartNow();
+    }
+    raceRunning = true;
+    document.getElementById('elapsedDisplay').classList.add('running');
+    document.getElementById('btnRace').textContent  = '⏹ Detener Carrera';
+    document.getElementById('btnRace').className    = 'btn btn-red';
+    _raf = requestAnimationFrame(rafTimer);
+    toast('¡Carrera iniciada!');
+  } else {
+    raceRunning = false;
+    cancelAnimationFrame(_raf);
+    document.getElementById('elapsedDisplay').textContent = formatMs(getElapsed());
+    document.getElementById('elapsedDisplay').classList.remove('running');
+    document.getElementById('btnRace').textContent = '▶ Iniciar Carrera';
+    document.getElementById('btnRace').className   = 'btn btn-green';
+    toast('Carrera detenida', 'warn-t');
+  }
+  renderTable();
+}
+
+// Allow adjusting start time mid-race to correct elapsed calculation
+document.getElementById('startTimeInput').addEventListener('change', () => {
+  if (raceStart) {
+    applyStartTimeInput();
+    renderTable();
+  }
+});
+
+// ════════════════════════════════════════════════════════
+// SPEECH RECOGNITION
+// ════════════════════════════════════════════════════════
+function initRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast('SpeechRecognition no disponible en este navegador', 'err');
+    document.getElementById('btnMic').disabled = true;
+    return;
+  }
+  recog = new SR();
+  recog.lang            = 'es-ES';
+  recog.continuous      = true;
+  recog.interimResults  = true;
+  recog.maxAlternatives = 3;
+
+  recog.onresult = onSpeechResult;
+  recog.onerror  = e => { if (e.error !== 'no-speech') console.warn('Speech error:', e.error); };
+  recog.onend    = () => {
+    if (isListening) setTimeout(() => { try { recog.start(); } catch(_){} }, 150);
+  };
+}
+
+function onSpeechResult(event) {
+  const box = document.getElementById('transcriptBox');
+  let finalText = '', finalTs = null;
+
+  for (let i = event.resultIndex; i < event.results.length; i++) {
+    const r    = event.results[i];
+    const text = r[0].transcript;
+    const pend = interimPending.get(i);
+
+    if (r.isFinal) {
+      // Remove interim entries for this segment (they'll be re-added as final)
+      if (pend) {
+        const ids = pend.ids;
+        entries = entries.filter(e => !ids.includes(e.id));
+        finalTs = pend.ts;
+        interimPending.delete(i);
+      }
+      finalText += text;
+    } else {
+      // Interim: replace previous interim entries for this segment
+      const ts = pend ? pend.ts : Date.now();
+      if (pend) {
+        const ids = pend.ids;
+        entries = entries.filter(e => !ids.includes(e.id));
+      }
+      const newIds = extractAndPushInterim(text, ts);
+      interimPending.set(i, { ts, ids: newIds });
+    }
+  }
+
+  if (finalText) {
+    processVoice(finalText, finalTs);
+    saveAudioChunk(finalText); // async, non-blocking
+  } else {
+    renderTable(); // show interim rows
+  }
+
+  // Display transcript box
+  const parts = [];
+  for (let i = 0; i < event.results.length; i++) {
+    const r = event.results[i];
+    parts.push(r.isFinal
+      ? `<span class="final">${esc(r[0].transcript)}</span>`
+      : `<span class="interim">${esc(r[0].transcript)}</span>`);
+  }
+  if (parts.length) box.innerHTML = parts.join(' ');
+}
+
+/** Extracts dorsal numbers from interim text, pushes them as interim entries, returns their IDs */
+function extractAndPushInterim(text, ts) {
+  // Skip interim dorsal extraction when text looks like a "más N" command
+  if (/m[aá]s\s/i.test(text)) return [];
+  return extractNums(text).map(d => pushEntry(d, ts, 'interim'));
+}
+
+function processVoice(text, overrideTs) {
+  const ts = overrideTs || Date.now();
+  const t  = text.toLowerCase().trim();
+
+  // ── "más N" / "mas N" (dígito o palabra: "más tres", "más ciento veinte") ──
+  let masN = null;
+  const masDigitM = t.match(/m[aá]s\s+(\d+)/);
+  if (masDigitM) {
+    masN = parseInt(masDigitM[1]);
+  } else {
+    const masWordM = t.match(/m[aá]s\s+([\w\s]+)/);
+    if (masWordM) {
+      const normed = masWordM[1].trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const toks   = normed.split(/[^a-z0-9]+/).filter(Boolean);
+      if (toks.length && toks[0] in _WV) {
+        const parsed = _trySpanish(toks, 0);
+        if (parsed) masN = parsed.value;
+      }
+    }
+  }
+  if (masN !== null && masN >= 1 && masN <= 9999) {
+    addEntry(null, ts, 'mas', masN);
+    toast(`+${masN} no identificados`);
+    return;
+  }
+
+  // ── Dorsal numbers ──
+  const nums = extractNums(text);
+
+  if (nums.length) {
+    const dups = [];
+    nums.forEach(d => {
+      if (entries.some(e => e.dorsal === d)) dups.push(d);
+      addEntry(d, ts, 'voz');
+    });
+    let msg = `Dorsal${nums.length > 1 ? 'es' : ''}: ${nums.join(', ')}`;
+    if (dups.length) {
+      msg += ` ⚠ duplicado${dups.length > 1 ? 's' : ''}: ${dups.join(', ')}`;
+      toast(msg, 'warn-t');
+    } else {
+      toast(msg);
+    }
+    if (!raceRunning) {
+      document.getElementById('transcriptBox').innerHTML +=
+        ' <span class="warn">⚠ carrera no iniciada</span>';
+    }
+  } else if (masN === null) {
+    document.getElementById('transcriptBox').innerHTML +=
+      ' <span class="warn">⚠ sin dorsal reconocido</span>';
+  }
+}
+
+async function toggleListening() {
+  if (!recog) initRecognition();
+  if (!recog) return;
+
+  isListening = !isListening;
+
+  if (isListening) {
+    try { recog.start(); } catch(_) {}
+    await startRecording();
+    document.getElementById('btnMic').textContent = '🔴 Desactivar micrófono';
+    document.getElementById('btnMic').className   = 'btn btn-red';
+    document.getElementById('micDot').className   = 'dot green';
+    document.getElementById('micStatusText').textContent = 'Escuchando…';
+  } else {
+    recog.stop();
+    stopRecording();
+    document.getElementById('btnMic').textContent = '🎤 Activar micrófono';
+    document.getElementById('btnMic').className   = 'btn btn-green';
+    document.getElementById('micDot').className   = 'dot';
+    document.getElementById('micStatusText').textContent = 'Inactivo';
+    document.getElementById('transcriptBox').innerHTML =
+      '<span class="placeholder">El texto reconocido aparecerá aquí…</span>';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// AUDIO RECORDING
+// ════════════════════════════════════════════════════════
+async function startRecording() {
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    beginChunk();
+    document.getElementById('recDot').className   = 'dot red';
+    document.getElementById('recStatusText').textContent = 'Grabando…';
+  } catch(e) {
+    toast('Micrófono no disponible: ' + e.message, 'err');
+  }
+}
+
+function beginChunk() {
+  if (!recStream) return;
+  recChunks = [];
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus' : 'audio/webm';
+  recRecorder = new MediaRecorder(recStream, { mimeType: mime });
+  recRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+  recRecorder.start(100); // 100ms timeslice
+}
+
+function stopRecording() {
+  if (recRecorder && recRecorder.state !== 'inactive') recRecorder.stop();
+  if (recStream) { recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+  document.getElementById('recDot').className          = 'dot';
+  document.getElementById('recStatusText').textContent = 'Sin grabar';
+}
+
+async function saveAudioChunk(transcript) {
+  if (!recRecorder || recRecorder.state === 'inactive') return;
+  if (recSaving) return; // don't overlap saves
+  recSaving = true;
+
+  // Stop recorder, collect blob
+  recRecorder.stop();
+  await new Promise(res => {
+    const t = setTimeout(res, 2000); // safety timeout
+    recRecorder.onstop = () => { clearTimeout(t); res(); };
+  });
+
+  const blob       = new Blob(recChunks, { type: recRecorder.mimeType || 'audio/webm' });
+  const startStr   = formatDateFilename(raceStart || new Date());
+  const elapsedStr = formatMsFilename(getElapsed());
+  const ext        = (recRecorder.mimeType || '').includes('webm') ? 'webm' : 'ogg';
+  const fileName   = `${startStr}_${elapsedStr}.${ext}`;
+
+  if (dirHandle && blob.size > 0) {
+    try {
+      const fh = await dirHandle.getFileHandle(fileName, { create: true });
+      const w  = await fh.createWritable();
+      await w.write(blob);
+      await w.close();
+      savedAudio++;
+      document.getElementById('savedFilesInfo').textContent =
+        `Audios guardados: ${savedAudio}`;
+    } catch(e) {
+      console.error('Error guardando audio:', e);
+    }
+  }
+
+  recSaving = false;
+  // Restart recorder for next recognition
+  if (isListening && recStream) beginChunk();
+}
+
+// ════════════════════════════════════════════════════════
+// DIRECTORY (File System Access API)
+// ════════════════════════════════════════════════════════
+async function selectDirectory() {
+  if (!window.showDirectoryPicker) {
+    toast('File System Access API no disponible — usa Chrome con HTTPS o file://', 'err');
+    return;
+  }
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    document.getElementById('dirInfo').textContent = `📁 ${dirHandle.name}`;
+    savedAudio = 0;
+    document.getElementById('savedFilesInfo').textContent = 'Audios guardados: 0';
+    toast(`Directorio seleccionado: ${dirHandle.name}`);
+  } catch(e) {
+    if (e.name !== 'AbortError') toast('Error al seleccionar directorio', 'err');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// TABLE / DATA
+// ════════════════════════════════════════════════════════
+function pushEntry(dorsal, timestamp, type, count) {
+  const id  = nextId++;
+  const obj = { id, dorsal, timestamp, type };
+  if (count && count > 1) obj.count = count;
+  entries.push(obj);
+  entries.sort((a, b) => a.timestamp - b.timestamp);
+  return id;
+}
+
+function addEntry(dorsal, timestamp, type, count) {
+  pushEntry(dorsal, timestamp, type, count);
+  renderTable();
+  autoSave();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+
+  if (!entries.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--muted);">
+      Sin datos — activa el micrófono y di dorsales</td></tr>`;
+    document.getElementById('tableStats').textContent = '0 entradas';
+    return;
+  }
+
+  // Build a set of dorsal→count to mark duplicates (excluding interim)
+  const dorsalCount = {};
+  entries.forEach(e => {
+    if (e.dorsal !== null && e.type !== 'interim')
+      dorsalCount[e.dorsal] = (dorsalCount[e.dorsal] || 0) + 1;
+  });
+
+  let runnerPos = 0;
+  tbody.innerHTML = entries.map((e, i) => {
+    const cnt       = e.count || 1;
+    runnerPos      += cnt;
+    const posStr    = cnt > 1 ? `${runnerPos - cnt + 1}–${runnerPos}` : `${runnerPos}`;
+    const elapsedMs = raceStart ? Math.max(0, e.timestamp - raceStart.getTime()) : 0;
+    const timeStr   = formatMs(elapsedMs);
+    const isDup     = e.dorsal !== null && dorsalCount[e.dorsal] > 1;
+
+    const isMas     = e.type === 'mas';
+    const isInterim = e.type === 'interim';
+
+    const dorsalCell = isMas
+      ? `<span class="col-dorsal" style="color:var(--yellow)">+${cnt}</span>`
+      : e.dorsal !== null
+        ? `<span class="col-dorsal">${e.dorsal}</span>`
+        : `<span class="badge badge-ni">N/I</span>`;
+
+    const badges = [];
+    if (isInterim) badges.push(`<span class="badge badge-int">…</span>`);
+    if (e.type === 'manual') badges.push(`<span class="badge badge-manual">manual</span>`);
+    if (isDup)               badges.push(`<span class="badge badge-dup">duplicado</span>`);
+
+    const trClass = [isDup ? 'dup' : '', isInterim ? 'interim-row' : ''].join(' ').trim();
+    const actions = isInterim
+      ? `<td></td>`
+      : `<td>
+          <button class="btn btn-gray btn-sm" onclick="openEdit(${e.id})" title="Editar">✏</button>
+          <button class="btn btn-red  btn-sm" onclick="deleteEntry(${e.id})" title="Eliminar" style="margin-left:2px;">✕</button>
+        </td>`;
+
+    return `<tr class="${trClass}" data-id="${e.id}">
+      <td class="col-pos">${posStr}</td>
+      <td>${dorsalCell}</td>
+      <td class="col-time">${timeStr}</td>
+      <td>${badges.join(' ')}</td>
+      ${actions}
+    </tr>`;
+  }).join('');
+
+  const confirmed    = entries.filter(e => e.type !== 'interim');
+  const totalRunners = confirmed.reduce((s, e) => s + (e.count || 1), 0);
+  const niRunners    = confirmed.filter(e => e.dorsal === null).reduce((s, e) => s + (e.count || 1), 0);
+  const identRunners = totalRunners - niRunners;
+  document.getElementById('tableStats').textContent =
+    `${totalRunners} corredores · ${identRunners} identificados · ${niRunners} N/I`;
+}
+
+function deleteEntry(id) {
+  if (!confirm('¿Eliminar esta entrada?')) return;
+  entries = entries.filter(e => e.id !== id);
+  renderTable();
+  autoSave();
+}
+
+function openEdit(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('editId').value     = id;
+  document.getElementById('editDorsal').value = e.dorsal !== null ? e.dorsal : '';
+  const elapsedMs = raceStart ? Math.max(0, e.timestamp - raceStart.getTime()) : 0;
+  document.getElementById('editTime').value   = formatMs(elapsedMs);
+  document.getElementById('editModal').className = 'modal-overlay visible';
+  document.getElementById('editDorsal').focus();
+}
+
+function closeModal() {
+  document.getElementById('editModal').className = 'modal-overlay';
+}
+
+function onOverlayClick(e) {
+  if (e.target === document.getElementById('editModal')) closeModal();
+}
+
+function saveEdit() {
+  const id        = parseInt(document.getElementById('editId').value);
+  const dorsalStr = document.getElementById('editDorsal').value.trim();
+  const timeStr   = document.getElementById('editTime').value.trim();
+  const e         = entries.find(x => x.id === id);
+  if (!e) return;
+
+  if (dorsalStr === '') {
+    e.dorsal = null;
+  } else {
+    const d = parseInt(dorsalStr);
+    if (isNaN(d) || d < 1 || d > 10000) { toast('Dorsal inválido (1–10000)', 'err'); return; }
+    e.dorsal = d;
+  }
+
+  if (timeStr) {
+    try {
+      const ms = parseTimeInput(timeStr);
+      e.timestamp = raceStart ? raceStart.getTime() + ms : Date.now();
+    } catch(_) { toast('Formato de tiempo inválido', 'err'); return; }
+  }
+
+  e.type = 'manual';
+  entries.sort((a, b) => a.timestamp - b.timestamp);
+  renderTable();
+  autoSave();
+  closeModal();
+  toast('Entrada actualizada');
+}
+
+// ════════════════════════════════════════════════════════
+// ADD FORM
+// ════════════════════════════════════════════════════════
+function showAddForm() {
+  document.getElementById('addForm').className = 'add-form visible';
+  document.getElementById('addDorsal').focus();
+}
+
+function hideAddForm() {
+  document.getElementById('addForm').className = 'add-form';
+  document.getElementById('addDorsal').value   = '';
+  document.getElementById('addPos').value      = '';
+  document.getElementById('addTime').value     = '';
+}
+
+function addManual() {
+  const dorsalStr = document.getElementById('addDorsal').value.trim();
+  const posStr    = document.getElementById('addPos').value.trim();
+  const timeStr   = document.getElementById('addTime').value.trim();
+
+  let dorsal = null;
+  if (dorsalStr) {
+    dorsal = parseInt(dorsalStr);
+    if (isNaN(dorsal) || dorsal < 1 || dorsal > 10000) {
+      toast('Dorsal inválido (1–10000)', 'err'); return;
+    }
+  }
+
+  // Confirmed entries sorted by timestamp (no interims)
+  const sorted = entries.filter(e => e.type !== 'interim')
+                        .sort((a, b) => a.timestamp - b.timestamp);
+
+  // Validate position
+  let targetPos = null;
+  if (posStr) {
+    targetPos = parseInt(posStr);
+    if (isNaN(targetPos) || targetPos < 1 || targetPos > sorted.length + 1) {
+      toast(`Posición inválida (1–${sorted.length + 1})`, 'err'); return;
+    }
+  }
+
+  // Resolve timestamp
+  let timestamp;
+  if (timeStr) {
+    try {
+      const ms = parseTimeInput(timeStr);
+      timestamp = raceStart ? raceStart.getTime() + ms : Date.now();
+    } catch(_) { toast('Formato inválido. Ej: 35:21.45', 'err'); return; }
+  } else if (targetPos !== null) {
+    // Compute a timestamp that slots the entry at the requested position
+    const P = targetPos - 1; // 0-indexed target slot
+    if (sorted.length === 0) {
+      timestamp = raceStart ? raceStart.getTime() : Date.now();
+    } else if (P === 0) {
+      timestamp = sorted[0].timestamp - 1;
+    } else if (P >= sorted.length) {
+      timestamp = sorted[sorted.length - 1].timestamp + 1;
+    } else {
+      const prev = sorted[P - 1], next = sorted[P];
+      if (next.timestamp - prev.timestamp >= 2) {
+        timestamp = next.timestamp - 1;
+      } else {
+        // No gap — shift next and all subsequent entries 1 ms forward to make room
+        const pivot = next.timestamp;
+        entries.forEach(e => { if (e.type !== 'interim' && e.timestamp >= pivot) e.timestamp += 1; });
+        timestamp = pivot; // now sits 1 ms before next's new position
+      }
+    }
+  } else {
+    timestamp = Date.now();
+  }
+
+  // When a position is forced with an explicit time, ensure the entries that
+  // must come after the new one actually have a later timestamp.
+  if (targetPos !== null && timeStr) {
+    const P = targetPos - 1;
+    let minTs = timestamp + 1;
+    sorted.slice(P).forEach(e => {
+      if (e.timestamp < minTs) e.timestamp = minTs;
+      minTs = e.timestamp + 1;
+    });
+  }
+
+  addEntry(dorsal, timestamp, 'manual');
+  hideAddForm();
+  toast('Entrada añadida');
+}
+
+['addPos', 'addTime'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') addManual();
+  })
+);
+
+// ════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════
+function buildCSV() {
+  const header = 'Posición,Dorsal,Tiempo,ElapsedMs,Tipo,Cantidad\n';
+  let pos = 0;
+  const rows = entries.filter(e => e.type !== 'interim').map(e => {
+    const cnt    = e.count || 1;
+    pos         += cnt;
+    const ms     = raceStart ? Math.max(0, e.timestamp - raceStart.getTime()) : 0;
+    const dorsal = e.type === 'mas' ? `+${cnt}` : (e.dorsal ?? 'N/I');
+    const posStr = cnt > 1 ? `${pos - cnt + 1}-${pos}` : String(pos);
+    return `${posStr},${dorsal},${formatMs(ms)},${ms},${e.type},${cnt}`;
+  }).join('\n');
+  return header + rows;
+}
+
+function buildJSON() {
+  let pos = 0;
+  return JSON.stringify({
+    horaInicio: raceStart ? raceStart.toISOString() : null,
+    entradas: entries.filter(e => e.type !== 'interim').map(e => {
+      const cnt = e.count || 1;
+      pos      += cnt;
+      const ms  = raceStart ? Math.max(0, e.timestamp - raceStart.getTime()) : 0;
+      const obj = { posicion: pos, dorsal: e.dorsal, tiempo: formatMs(ms), elapsedMs: ms, tipo: e.type };
+      if (e.count) obj.cantidad = e.count;
+      return obj;
+    })
+  }, null, 2);
+}
+
+function exportCSV() {
+  download(buildCSV(), 'tiempos.csv', 'text/csv;charset=utf-8');
+}
+
+function exportJSON() {
+  download(buildJSON(), 'tiempos.json', 'application/json');
+}
+
+function download(content, name, type) {
+  const a = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob(['\uFEFF' + content], { type }));
+  a.download = name;
+  a.click();
+  toast(`Exportado: ${name}`);
+}
+
+function clearAll() {
+  if (!entries.length) return;
+  if (!confirm(`¿Borrar todas las ${entries.length} entradas?`)) return;
+  entries = [];
+  nextId  = 1;
+  renderTable();
+  autoSave();
+  toast('Tabla borrada', 'warn-t');
+}
+
+// ════════════════════════════════════════════════════════
+// AUTO SAVE TO DIRECTORY
+// ════════════════════════════════════════════════════════
+let _saveTimer;
+async function autoSave() {
+  if (!dirHandle) return;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    try {
+      // JSON
+      const jh = await dirHandle.getFileHandle('tiempos.json', { create: true });
+      const jw = await jh.createWritable();
+      await jw.write(buildJSON());
+      await jw.close();
+      // CSV
+      const ch = await dirHandle.getFileHandle('tiempos.csv', { create: true });
+      const cw = await ch.createWritable();
+      await cw.write('\uFEFF' + buildCSV());
+      await cw.close();
+
+      const now = new Date().toLocaleTimeString('es-ES');
+      document.getElementById('autoSaveInfo').textContent = `Guardado automático: ${now}`;
+    } catch(e) {
+      console.error('Auto-save error:', e);
+    }
+  }, 350);
+}
+
+// ════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+  if (e.key === ' ')      { e.preventDefault(); toggleListening(); }
+  if (e.key === 'Enter')  { e.preventDefault(); toggleRace(); }
+  if (e.key === 'Escape') { closeModal(); }
+});
+
+// Modal keyboard
+document.getElementById('editTime').addEventListener('keydown', e => {
+  if (e.key === 'Enter')  saveEdit();
+  if (e.key === 'Escape') closeModal();
+});
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+setInterval(updateClock, 1000);
+updateClock();
+initRecognition();
+</script>
+</body>
+</html>
