@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Batida">
-  <meta name="version" content="1.2b">
-  <meta name="last-modified" content="2026-04-01">  
+  <meta name="version" content="1.2c">
+  <meta name="last-modified" content="2026-04-22">  
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.png" type="image/png">
   <link rel="apple-touch-icon" href="logo.png">
@@ -557,7 +557,7 @@
     </div>
 
     <p style="font-size:.75rem;color:#666;margin-top:10px;line-height:1.5;">
-      <em>Tabla de Batida [v1.2b] ha sido desarrollada por <strong>Carlos Miguel</strong> como herramienta de apoyo al juzgamiento en competiciones de atletismo.</em>
+      <em>Tabla de Batida [v1.2c] ha sido desarrollada por <strong>Carlos Miguel</strong> como herramienta de apoyo al juzgamiento en competiciones de atletismo.</em>
     </p>
     <p style="font-size:.72rem;color:#888;line-height:1.5;">
       © 2026 Carlos Miguel. Todos los derechos reservados. Queda prohibida la reproducción, distribución o modificación de este software sin autorización expresa del autor.
@@ -1482,8 +1482,10 @@ function prepararAnalisis(url, videoName = null, liveSamples = null) {
 
     const cached = await loadAnalysis(videoName);
     if (isValidCache(cached)) {
-      samples  = cached.samples;
-      keyFrame = cached.keyFrame;
+      samples    = cached.samples;
+      keyFrame   = cached.keyFrame;
+      videoFPS   = cached.videoFPS   || videoFPS;
+      frameCount = cached.frameCount || Math.round(analyzeVideo.duration * videoFPS);
       setNavEnabled(true);
       drawChart();
       await goFrame(keyFrame);
