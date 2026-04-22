@@ -1,4 +1,4 @@
-const CACHE = 'batida-v1.2b';
+const CACHE = 'batida-v1.2c';
 const ASSETS = [
   './index.html',
   './manifest.json',
