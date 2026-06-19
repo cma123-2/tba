@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Batida">
-  <meta name="version" content="1.2c">
-  <meta name="last-modified" content="2026-04-22">  
+  <meta name="version" content="1.2d">
+  <meta name="last-modified" content="2026-06-19">  
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.png" type="image/png">
   <link rel="apple-touch-icon" href="logo.png">
@@ -222,6 +222,7 @@
     #fldIntento { width: 2rem; background: #c9a000 !important; color: #000 !important; font-weight: bold; font-size: .8rem; }
     #fldDorsal  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
     #fldEquipo  { width: 4rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; }
+    @media (min-width: 480px) { #fldEquipo { width: 12rem; } }
     #fldNombre  { flex: 1; min-width: 8rem; max-width: 24rem; font-size: .8rem; font-weight: bold; background: #1a3a6e !important; color: #fff !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #fldIntento, #fldDorsal { appearance: none; -webkit-appearance: none; }
     #btnPlay { background: #495057; color: #4a9eff; }
@@ -268,6 +269,9 @@
     .help-desc { flex: 1; line-height: 1.35; }
     .help-section { font-size: .72rem; font-weight: bold; color: #888;
       margin: 8px 0 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .btn-test-active { background: #c9a000 !important; color: #000 !important; }
+    .ov-top.test-active { background: rgb(180,140,0); }
+
     .cam-opt {
       padding: 5px 10px; border-radius: 7px; border: none; cursor: pointer;
       font-size: .8rem; background: #2a2a4a; color: #dde;
@@ -431,6 +435,7 @@
     <button class="btn-neutral" id="btnSelDir"     onclick="seleccionarDir()"      title="Seleccionar directorio" disabled>📁</button>
     <button class="btn-neutral" id="btnCargar"     onclick="cargarDesdeDir()"      title="Cargar vídeo" disabled>🎞</button>
     <button class="btn-neutral" id="btnParticipantes" onclick="abrirParticipantes()" title="Editar participantes" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
+    <button class="btn-neutral" id="btnTest"       onclick="toggleTestMode()"      title="Modo test" disabled>⚠️</button>
     <button class="btn-neutral" id="btnHelp"       onclick="toggleHelp()"          title="Ayuda">?</button>
   </div>
 
@@ -552,12 +557,16 @@
       <div class="help-desc"><b>Editar participantes</b> — Abre el editor para añadir, borrar o modificar participantes.</div>
     </div>
     <div class="help-item">
+      <div class="help-icon">⚠️</div>
+      <div class="help-desc"><b>Modo test</b> — Activa o desactiva el modo de pruebas. Mientras está activo, el encabezado se resalta en amarillo y los vídeos se guardan con el prefijo <em>test-</em>. Al desactivarlo, se eliminan automáticamente todos los ficheros <em>test-</em> del directorio.</div>
+    </div>
+    <div class="help-item">
       <div class="help-icon">?</div>
       <div class="help-desc"><b>Ayuda</b> — Abre o cierra esta ventana de ayuda.</div>
     </div>
 
     <p style="font-size:.75rem;color:#666;margin-top:10px;line-height:1.5;">
-      <em>Tabla de Batida [v1.2c] ha sido desarrollada por <strong>Carlos Miguel</strong> como herramienta de apoyo al juzgamiento en competiciones de atletismo.</em>
+      <em>Tabla de Batida [v1.2d] ha sido desarrollada por <strong>Carlos Miguel</strong> como herramienta de apoyo al juzgamiento en competiciones de atletismo.</em>
     </p>
     <p style="font-size:.72rem;color:#888;line-height:1.5;">
       © 2026 Carlos Miguel. Todos los derechos reservados. Queda prohibida la reproducción, distribución o modificación de este software sin autorización expresa del autor.
@@ -687,6 +696,10 @@ async function seleccionarDir() {
     document.getElementById('ovDir').textContent = dirHandle.name;
     btnCargar.disabled  = false;
     btnGrabar.disabled  = !mediaStream;
+    // Resetear modo test al cambiar de directorio
+    isTestMode = false;
+    document.getElementById('btnTest').classList.remove('btn-test-active');
+    document.querySelector('.ov-top').classList.remove('test-active');
 
     document.getElementById('btnParticipantes').disabled = false;
     syncUI();
@@ -849,8 +862,17 @@ function resetParticipanteInputs() {
   document.getElementById('btnNextDorsal').disabled = true;
 }
 
+let isTestMode = false;
 let camConfig = { width: 1280, height: 720, fps: 60, brightness: 0, contrast: 0 };
 let camRealSettings = { width: 1280, height: 720, fps: 30 }; // Valores reales conseguidos por la cámara
+
+function saveCamPrefs(deviceId, cfg) {
+  if (!deviceId) return;
+  localStorage.setItem('camPrefs_' + deviceId, JSON.stringify(cfg));
+}
+function loadCamPrefs(deviceId) {
+  try { return JSON.parse(localStorage.getItem('camPrefs_' + deviceId)); } catch { return null; }
+}
 
 async function aplicarBrilloContraste() {
   const track = mediaStream?.getVideoTracks()[0];
@@ -883,6 +905,8 @@ async function activarCamara(deviceId = null) {
   let intentoExitoso = false;
 
   if (deviceId) {
+    const prefs = loadCamPrefs(deviceId);
+    if (prefs) Object.assign(camConfig, prefs);
     // Con deviceId específico: usar camConfig actual
     const videoConstraints = {
       width:     { ideal: camConfig.width },
@@ -1038,6 +1062,7 @@ async function mostrarCamaras() {
       list.querySelectorAll('.cam-opt').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       camSelectedDeviceId = opt.value;
+      applyPrefsToUI(opt.value);
       actualizarCapacidadesCamara();
     };
     list.appendChild(btn);
@@ -1063,6 +1088,17 @@ async function mostrarCamaras() {
   };
   actualizarCapacidadesCamara();
   document.getElementById('camOverlay').style.display = 'flex';
+}
+
+function applyPrefsToUI(deviceId) {
+  const prefs = loadCamPrefs(deviceId);
+  const cfg = prefs || camConfig;
+  toggleCamOptSelected('res', b => +b.dataset.w === cfg.width && +b.dataset.h === cfg.height);
+  toggleCamOptSelected('fps', b => +b.dataset.fps === cfg.fps);
+  document.getElementById('sliderBrillo').value     = cfg.brightness ?? 0;
+  document.getElementById('valBrillo').textContent  = cfg.brightness ?? 0;
+  document.getElementById('sliderContraste').value  = cfg.contrast  ?? 0;
+  document.getElementById('valContraste').textContent = cfg.contrast ?? 0;
 }
 
 function actualizarCapacidadesCamara() {
@@ -1122,7 +1158,8 @@ async function aplicarCamara() {
   if (fpsBtn) { camConfig.fps = +fpsBtn.dataset.fps; }
   camConfig.brightness = +document.getElementById('sliderBrillo').value;
   camConfig.contrast = +document.getElementById('sliderContraste').value;
-  
+  if (camSelectedDeviceId) saveCamPrefs(camSelectedDeviceId, { ...camConfig });
+
   // Aplicar brillo y contraste
   await aplicarBrilloContraste();
   
@@ -1226,7 +1263,7 @@ function iniciarGrabacion() {
       + String(now.getHours()).padStart(2,'0')
       + String(now.getMinutes()).padStart(2,'0')
       + String(now.getSeconds()).padStart(2,'0');
-    const nombre  = `${fecha}_${intento}_${dorsal}_${equipo}_${nombre0}.${ext}`;
+    const nombre  = `${isTestMode ? 'test-' : ''}${fecha}_${intento}_${dorsal}_${equipo}_${nombre0}.${ext}`;
     const blob  = new Blob(recChunks, { type: mime });
     await guardarEnDir(blob, nombre);
     setStatus(`Grabado a ${camRealSettings.width}x${camRealSettings.height} @ ${camRealSettings.fps}fps — ${nombre}`);
@@ -1663,6 +1700,8 @@ function syncUI() {
   }
   // Botón directorio: rojo si no hay carpeta seleccionada
   document.getElementById('btnSelDir')?.classList.toggle('btn-missing-dir', !dirHandle);
+  // Botón test: solo activo si hay directorio
+  document.getElementById('btnTest').disabled = !dirHandle;
   // Chart: interactivo solo en navegación
   document.getElementById('chartWrap').style.pointerEvents = enNavegacion ? 'auto' : 'none';
 }
@@ -1707,6 +1746,24 @@ document.addEventListener('fullscreenchange', () => {
   document.getElementById('btnFullscreen').textContent =
     document.fullscreenElement ? '⊡' : '⛶';
 });
+
+function toggleTestMode() {
+  if (!dirHandle) return;
+  isTestMode = !isTestMode;
+  document.getElementById('btnTest').classList.toggle('btn-test-active', isTestMode);
+  document.querySelector('.ov-top').classList.toggle('test-active', isTestMode);
+  if (!isTestMode) borrarFicherosTest();
+}
+
+async function borrarFicherosTest() {
+  if (!dirHandle) return;
+  const toDelete = [];
+  for await (const [name] of dirHandle.entries())
+    if (name.startsWith('test-')) toDelete.push(name);
+  for (const name of toDelete)
+    try { await dirHandle.removeEntry(name); } catch(e) {}
+  if (toDelete.length) setStatus(`${toDelete.length} fichero(s) test eliminados.`);
+}
 
 function toggleHelp() {
   document.getElementById('helpOverlay').classList.toggle('open');
