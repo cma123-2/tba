@@ -78,11 +78,11 @@
     .progress-bar { height: 100%; background: #4a9eff; width: 0%; transition: width .08s; }
 
     /* ── Contenedor de botones ───────────────────────────── */
-    .btn-row {
-      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+    #toolNav {
+      display: flex; gap: 6px; flex-wrap: nowrap; justify-content: center;
       order: 3;
     }
-    .btn-row button { flex: 0 0 auto; width: 2.6rem; height: 2.0rem; padding: 0; line-height: 1; }
+    #toolNav button { flex: 0 0 auto; width: 2.2rem; height: 2.0rem; padding: 0; line-height: 1; }
 
     /* ── Landscape: herramientas izq | vídeo | nav der ───── */
     @media (orientation: landscape) {
@@ -90,7 +90,8 @@
       .video-col        { order: 2; }
       #frameNav         { order: 3; flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 3px; }
       #frameNav button  { width: 2.2rem; height: calc((100svh - 20px) / 8 - 3px); max-height: 2.0rem; }
-      .btn-row          { order: 1; flex-direction: column; flex-wrap: nowrap; justify-content: center; width: auto; }
+      #toolNav          { order: 1; flex-direction: column; flex-wrap: nowrap; justify-content: center; width: auto; gap: 3px; }
+      #toolNav button   { width: 2.2rem; height: calc((100svh - 20px) / 8 - 3px); max-height: 2.0rem; }
       .video-area video,
       .video-area canvas.frame-view { max-height: calc(100svh - 30px); }
     }
@@ -427,7 +428,7 @@
   </div>
 
   <!-- Herramientas (izquierda en landscape) -->
-  <div class="btn-row">
+  <div id="toolNav">
     <select id="camSelect" onchange="cambiarCamara()" style="display:none"></select>
     <button class="btn-neutral" id="btnCamSelect" onclick="mostrarCamaras()" title="Cambiar cámara"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
     <button class="btn-neutral" id="btnFullscreen" onclick="toggleFullscreen()"    title="Pantalla completa">⛶</button>
